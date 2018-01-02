@@ -8,7 +8,10 @@ manta_sources_$(d) += \
 	codec/image/exr.cpp \
 	things/sphere.cpp \
         things/plane.cpp \
-        material/diffuse.cpp
+        material/diffuse.cpp \
+        material/plastic.cpp \
+        material/mirror.cpp \
+        material/glass.cpp
 
 manta_precompiled_$(d) :=
 manta_target_dir_$(d)  := bin

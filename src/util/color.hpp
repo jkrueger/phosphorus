@@ -7,6 +7,10 @@ struct color_t {
     : r(0), g(0), b(0)
   {}
 
+  inline color_t(double x)
+    : r(x), g(x), b(x)
+  {}
+
   inline color_t(const color_t& cpy)
     : r(cpy.r), g(cpy.g), b(cpy.b)
   {}
@@ -21,9 +25,21 @@ struct color_t {
   }
 };
 
+inline color_t operator+(const color_t& l, const color_t& r) {
+  color_t out(l);
+  out.r += r.r; out.g += r.g; out.b += r.b;
+  return out;
+}
+
 inline color_t& operator+=(color_t& l, const color_t& r) {
   l.r += r.r; l.g += r.g; l.b += r.b;
   return l;
+}
+
+inline color_t operator-(const color_t& l, const color_t& r) {
+  color_t out(l);
+  out.r -= r.r; out.g -= r.g; out.b -= r.b;
+  return out;
 }
 
 inline color_t operator*(const color_t& l, double r) {

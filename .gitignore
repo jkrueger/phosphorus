@@ -31,6 +31,8 @@
 *.out
 *.app
 
+node_modules/**
 target/**
-out.*
+*.bmp
+*.exr
 TODO

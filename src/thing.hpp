@@ -3,6 +3,7 @@
 #include "math/sampling.hpp"
 #include "math/vector.hpp"
 #include "material.hpp"
+#include "util/color.hpp"
 
 #include <memory>
 #include <vector>
@@ -28,7 +29,9 @@ struct thing_t {
 };
 
 struct shadable_t : public thing_t {
+  typedef std::shared_ptr<shadable_t> p;
 
+  color_t       emissive;
   material_t::p material;
 
   inline shadable_t(const vector_t& p, const material_t::p& m)

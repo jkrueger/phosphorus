@@ -53,6 +53,6 @@ void sphere_t::sample(const vector_t& p, sample_t* samples, uint32_t num) const 
     vector_t v(cos(phi) * r, samples[i].u, sin(phi) * r);
 
     samples[i].pdf = pdf;
-    samples[i].p = base.to(v).scale(radius) + position;
+    samples[i].p = base.to_world(v).scale(radius) + position;
   }
 }

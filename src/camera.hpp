@@ -67,8 +67,16 @@ struct camera_t {
 	auto ray = lens.sample(ray_t({0, 0, -10}, {ndcx, ndcy, 1.0}));
 	ray.direction.normalize();
 
-	film.expose(x, y, integrator.trace(scene, ray));
+	color_t c;
+	for (int i=0; i<1; ++i) {
+	  c += integrator.trace(scene, ray);
+	}
+        // c = c * (1.0 / 128.0);
+
+	film.expose(x, y, c);
       }
+      printf("\rprogress: %d", (uint32_t) (((double)y/(double)film.height) * 100.0));
+      fflush(stdout);
     }
   }
 };
