@@ -11,7 +11,7 @@
 
 struct path_tracer_t {
 
-  static const uint32_t SHADOW_SAMPLES = 32;
+  static const uint32_t SHADOW_SAMPLES = 8;
   static const uint8_t  MAX_DEPTH = 0;
 
   std::vector<light_t::p> emitters;

@@ -39,14 +39,14 @@ int main(int argc, char** argv) {
   scene.things.push_back(plane1);
   scene.things.push_back(sphere0);
   scene.things.push_back(sphere1);
-  // scene.things.push_back(sphere2);
+  scene.things.push_back(sphere2);
   scene.things.push_back(light0);
   scene.things.push_back(light1);
 
   camera_t<path_tracer_t> camera({0,0,0}, {0,0,1}, {0,1,0});
   camera.integrator.emitters.push_back(light0);
   camera.integrator.emitters.push_back(light1);
-  // camera.integrator.emitters.push_back(sphere2);
+  camera.integrator.emitters.push_back(sphere2);
 
   camera.snapshot(film, lens, scene);
   codec::image::exr::save("out.exr", film);
