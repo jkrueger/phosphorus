@@ -8,6 +8,7 @@ manta_sources_$(d) += \
 	codec/image/exr.cpp \
 	things/sphere.cpp \
         things/plane.cpp \
+        things/bvh.cpp \
         material/diffuse.cpp \
         material/plastic.cpp \
         material/mirror.cpp \

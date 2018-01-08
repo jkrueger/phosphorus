@@ -62,14 +62,12 @@ struct film_t {
   inline area_t* next_area() {
     auto idx = area--;
     if (idx >= 0) {
-      printf("progress: %d\n", idx);
       return &areas[idx];
     }
     return nullptr;
   }
 
   inline void finalize() {
-    printf("finalize\n");
     for (int i=0; i<(width/128)*(height/128); ++i) {
       auto& area = areas[i];
       for (int y=0; y<area.height; ++y) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "math/aabb.hpp"
 #include "math/sampling.hpp"
 #include "math/vector.hpp"
 #include "material.hpp"
@@ -30,6 +31,8 @@ struct thing_t {
     const sample_t*,
     sampled_vector_t* out,
     uint32_t) const = 0;
+
+  virtual aabb_t bounds() const = 0;
 };
 
 struct shadable_t : public thing_t {
@@ -45,8 +48,14 @@ struct shadable_t : public thing_t {
 };
 
 struct things_t : public thing_t {
-  
-  std::vector<std::shared_ptr<thing_t>> things;
+
+  std::vector<thing_t::p> things;
+  aabb_t _bounds;
+
+  void add(const thing_t::p thing) {
+    things.push_back(thing);
+    _bounds = bounds::merge(_bounds, thing->bounds());
+  }
 
   bool intersect(const ray_t& ray, shading_info_t& info) const {
     bool hit_anything = false;
@@ -59,5 +68,9 @@ struct things_t : public thing_t {
 
   void sample(const vector_t&, const sample_t*, sampled_vector_t* out, uint32_t) const {
     throw std::runtime_error("Uniform sampling not implemented for things_t");
+  }
+
+  aabb_t bounds() const {
+    return _bounds;
   }
 };

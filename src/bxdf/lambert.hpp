@@ -14,7 +14,7 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& in, const vector_t& out) const {
-      return k;
+      return k * (1.0 / M_PI);
     }
 
     color_t sample(const vector_t&, const sample_t& sample, sampled_vector_t& out) const {

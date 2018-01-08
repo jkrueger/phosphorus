@@ -49,10 +49,6 @@ struct path_tracer_t {
       path = ray_t(info.p + info.n * 0.0001, info.b.to_world(next.sampled));
       beta = beta * (r * (std::abs(dot(path.direction, info.n)) / next.pdf));
 
-      if (next.pdf <= 0.0 || dot(path.direction, info.n) > 1.0) {
-	printf("TEST: %f, %f, %f\n", next.pdf, next.sampled.y, foo.y);
-      }
-
       if (depth > 3) {
 	double q = std::max((double) 0.05, 1.0 - beta.y());
 	if (dis(gen) < q) {

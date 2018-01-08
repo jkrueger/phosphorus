@@ -3,18 +3,27 @@
 #include "thing.hpp"
 
 #include <memory>
-#include <vector>
 
 struct bvh_t : public thing_t {
+  typedef std::shared_ptr<bvh_t> p;
+  
+  struct impl_t;
 
-  struct node_t;
-
-  void add(const thing_t::p& thing);
-
-  void build();
+  bvh_t();
+  
+  void build(const std::vector<thing_t::p>& things);
   
   bool intersect(const ray_t&, shading_info_t&) const;
 
-  std::vector<thing_t::p> things;
-  std::shared_ptr<node_t> root;
+  aabb_t bounds() const
+  { return aabb_t(); }
+
+  void sample(
+    const vector_t&,
+    const sample_t*,
+    sampled_vector_t*,
+    uint32_t) const
+  {}
+
+  std::shared_ptr<impl_t> impl;
 };

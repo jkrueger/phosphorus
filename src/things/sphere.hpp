@@ -20,4 +20,6 @@ struct sphere_t : public shadable_t {
     const sample_t* samples,
     sampled_vector_t* sampled,
     uint32_t num) const;
+
+  aabb_t bounds() const;
 };

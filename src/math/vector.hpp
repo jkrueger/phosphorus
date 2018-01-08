@@ -80,12 +80,20 @@ inline vector_t operator+(const vector_t& l, const vector_t& r) {
   return vector_t(l.x+r.x, l.y+r.y, l.z+r.z);
 }
 
+inline vector_t operator+(const vector_t& l, double r) {
+  return vector_t(l.x+r, l.y+r, l.z+r);
+}
+
 inline vector_t operator-(const vector_t& v) {
   return vector_t(v) * -1;
 }
 
 inline vector_t operator-(const vector_t& l, const vector_t& r) {
   return vector_t(l.x-r.x, l.y-r.y, l.z-r.z);
+}
+
+inline vector_t operator-(const vector_t& l, double r) {
+  return vector_t(l.x-r, l.y-r, l.z-r);
 }
 
 inline double operator*(const vector_t& l, const vector_t& r) {

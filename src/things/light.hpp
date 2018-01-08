@@ -28,6 +28,10 @@ struct light_t : public thing_t {
     thing->sample(p, samples, out, n);
   }
 
+  aabb_t bounds() const {
+    return thing->bounds();
+  }
+
   const color_t& emit() const {
     return emissive;
   }

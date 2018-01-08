@@ -32,3 +32,7 @@ void plane_t::sample(
 
   throw std::runtime_error("Uniformly sampling isn't implemnented for plane_t");
 }
+
+aabb_t plane_t::bounds() const {
+  return aabb_t();
+}

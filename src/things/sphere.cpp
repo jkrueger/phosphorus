@@ -58,3 +58,7 @@ void sphere_t::sample(
     out[i].sampled = base.to_world(out[i].sampled).scale(radius) + position;
   }
 }
+
+aabb_t sphere_t::bounds() const {
+  return aabb_t(position - radius, position + radius);
+}
