@@ -56,9 +56,9 @@ namespace bxdf {
       : bxdf_t(bxdf_t::REFLECTIVE), fresnel(args...)
     {}
 
-    color_t sample(const vector_t& v, sample_t& sample) const {
-      sample.p   = vector_t(-v.x, v.y, -v.z);
-      sample.pdf = 1;
+    color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
+      out.sampled = vector_t(-v.x, v.y, -v.z);
+      out.pdf     = 1.0;
       auto cos_n = v.y;
       return (k * fresnel(cos_n)) * (1.0 / std::abs(cos_n));
     }
@@ -79,14 +79,14 @@ namespace bxdf {
       : bxdf_t(bxdf_t::TRANSMISSIVE), fresnel(eA, eB, args...)
     {}
 
-    color_t sample(const vector_t& v, sample_t& sample) const {
+    color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
       auto cos_n = v.y;
       bool entering = cos_n > 0;
       auto etaI = entering ? etaA : etaB;
-      auto etaT = entering ? etaA : etaB;
+      auto etaT = entering ? etaB : etaA;
       auto eta  = etaI / etaT;
 
-      sample.pdf = 1;
+      out.pdf = 1;
 
       auto cosTI  = v.y;
       auto sin2TI = std::max(0.0, 1.0 - cosTI * cosTI);
@@ -98,14 +98,14 @@ namespace bxdf {
 
       auto cosTT = std::sqrt(1 - sin2TT);
 
-      sample.p = eta * -v + (eta * cosTI * cosTT) * vector_t(0, 1, 0);
+      out.sampled = eta * -v + (eta * cosTI - cosTT) * vector_t(0, v.y > 0.0 ? 1 : -1, 0);
 
       // TODO: account for transmission from denser medium to less dense
       // (e.g. from water to air)
 
-      auto out = k * (color_t(1.0) - fresnel(cos_n));
+      auto spectrum = k * (color_t(1.0) - fresnel(out.sampled.y));
 
-      return out * (1.0 / std::abs(cos_n));
+      return spectrum * (1.0 / std::abs(out.sampled.y));
     }
 
     double pdf(const vector_t&, const vector_t&) const {

@@ -30,7 +30,7 @@ struct bxdf_t {
     return color_t();
   }
 
-  virtual color_t sample(const vector_t& v, sample_t& sample) const {
+  virtual color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
     throw std::runtime_error("Sample not implemented for this bxdf");
   }
 
@@ -74,6 +74,7 @@ struct shading_info_t {
   vector_t        n;
   invertible_base b;
   bxdf_t::p       _bxdf;
+  color_t         emissive;
 
   const shadable_t* thing;
 

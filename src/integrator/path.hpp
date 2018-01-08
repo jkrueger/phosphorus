@@ -9,10 +9,14 @@
 
 #include "bxdf/lambert.hpp"
 
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_real_distribution<> dis(0.0,1.0);
+
 struct path_tracer_t {
 
-  static const uint32_t SHADOW_SAMPLES = 8;
-  static const uint8_t  MAX_DEPTH = 0;
+  static const uint32_t SHADOW_SAMPLES = 9;
+  static const uint8_t  MAX_DEPTH = 8;
 
   std::vector<light_t::p> emitters;
 
@@ -26,9 +30,9 @@ struct path_tracer_t {
 
       shading_info_t info;
       if (scene.intersect(path, info)) {
-	out += beta * direct(scene, info, ray);
+	out += beta * direct(scene, info, path);
 	if (depth == 0) {
-	  out += info.thing->emissive;
+	  out += info.emissive;
 	}
       }
       else {
@@ -36,11 +40,26 @@ struct path_tracer_t {
 	break;
       }
 
-      sample_t next;
-      auto r = info.bxdf()->sample(info.b.to_local(-ray.direction), next);
+      sample_t sample(dis(gen), dis(gen));
+      sampled_vector_t next;
 
-      path = ray_t(info.p + info.n * 0.0001, info.b.to_world(next.p));
-      beta = beta * r * std::abs(dot(next.p, info.n)) * (1.0/next.pdf);
+      auto foo = info.b.to_local(-path.direction);
+      auto r = info.bxdf()->sample(foo, sample, next);
+
+      path = ray_t(info.p + info.n * 0.0001, info.b.to_world(next.sampled));
+      beta = beta * (r * (std::abs(dot(path.direction, info.n)) / next.pdf));
+
+      if (next.pdf <= 0.0 || dot(path.direction, info.n) > 1.0) {
+	printf("TEST: %f, %f, %f\n", next.pdf, next.sampled.y, foo.y);
+      }
+
+      if (depth > 3) {
+	double q = std::max((double) 0.05, 1.0 - beta.y());
+	if (dis(gen) < q) {
+	  break;
+	}
+	beta *= (1.0 / (1.0 - q));
+      }
 
       ++depth;
     }
@@ -50,22 +69,26 @@ struct path_tracer_t {
 
   color_t direct(const thing_t& scene, shading_info_t& info, const ray_t& ray) const {
     color_t direct;
+
     auto bxdf = info.bxdf();
 
     if (emitters.size() > 0 && bxdf->has_distribution()) {
       auto out  = ray.origin - info.p;
       out.normalize();
 
+      sample_t         uv[SHADOW_SAMPLES];
+      sampled_vector_t light_samples[SHADOW_SAMPLES];
+
       for (auto& emitter : emitters) {
 	if (static_cast<const thing_t*>(emitter.get()) !=
 	    static_cast<const thing_t*>(info.thing)) {
 
-	  sample_t samples[SHADOW_SAMPLES];
-	  emitter->sample(info.p, samples, SHADOW_SAMPLES); 
+	  sampling::strategies::stratified_2d(uv, 3);
+	  emitter->sample(info.p, uv, light_samples, SHADOW_SAMPLES); 
 
 	  color_t light;
-	  for (auto& sample : samples) {
-            auto in  = sample.p - info.p;
+	  for (auto& sample : light_samples) {
+            auto in  = sample.sampled - info.p;
 	    in.normalize();
 
 	    if (dot(in, info.n) > 0) {
@@ -73,9 +96,10 @@ struct path_tracer_t {
 	      if (scene.intersect(ray_t(info.p + info.n * 0.0001, in), shadow)) {
 		if (static_cast<const thing_t*>(emitter->thing.get()) ==
 		    static_cast<const thing_t*>(shadow.thing)) {
-		  auto s  = 1.0/(sample.pdf*shadow.d*shadow.d);
+
 		  auto il = info.b.to_local(in);
 		  auto ol = info.b.to_local(out);
+		  auto s  = il.y/(sample.pdf*shadow.d*shadow.d);
 		  light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
 		}
 	      }
@@ -86,11 +110,6 @@ struct path_tracer_t {
       }
       direct.scale(1.0/emitters.size());
     }
-
     return direct;
-  }
-
-  color_t indirect(const shading_info_t& info) const {
-    return {0, 0, 0};
   }
 };

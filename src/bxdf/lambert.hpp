@@ -14,17 +14,16 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& in, const vector_t& out) const {
-      auto a = std::max(0.0, in.y);
-      return k * a;
+      return k;
     }
 
-    color_t sample(const vector_t&, sample_t& sample) const {
-      cosine_sample_hemisphere(sample);
-      return k * sample.pdf;
+    color_t sample(const vector_t&, const sample_t& sample, sampled_vector_t& out) const {
+      sampling::strategies::cosine_sample_hemisphere(sample, out);
+      return k * (1.0 / M_PI);
     }
 
     double pdf(const vector_t& in, const vector_t& out) const {
-      return in.y;
+      return in.y * (1.0 / M_PI);
     }
   };
 }

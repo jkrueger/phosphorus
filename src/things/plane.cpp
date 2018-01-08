@@ -24,6 +24,11 @@ void plane_t::shading_parameters(shading_info_t& info, const vector_t& p) const 
   info.n = n;
 }
 
-void plane_t::sample(const vector_t&, sample_t*, uint32_t) const {
+void plane_t::sample(
+  const vector_t&,
+  const sample_t*,
+  sampled_vector_t* out,
+  uint32_t) const {
+
   throw std::runtime_error("Uniformly sampling isn't implemnented for plane_t");
 }

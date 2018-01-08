@@ -21,13 +21,13 @@ namespace bxdf {
       return k * std::pow(normalize(out + in).y, s);
     }
 
-    color_t sample(const vector_t&, sample_t& sample) const {
-      cosine_sample_hemisphere(sample);
-      return k * sample.pdf;
+    color_t sample(const vector_t&, const sample_t& sample, sampled_vector_t& out) const {
+      sampling::strategies::cosine_sample_hemisphere(sample, out);
+      return k * (1.0 / M_PI);
     }
 
     inline double pdf(const vector_t& in, const vector_t& out) const {
-      return in.y;
+      return in.y * (1.0 / M_PI);
     }
   };
 }

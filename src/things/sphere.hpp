@@ -15,5 +15,9 @@ struct sphere_t : public shadable_t {
 
   void shading_parameters(shading_info_t& info, const vector_t& p) const;
 
-  void sample(const vector_t& p, sample_t* samples, uint32_t num) const;
+  void sample(
+    const vector_t& p,
+    const sample_t* samples,
+    sampled_vector_t* sampled,
+    uint32_t num) const;
 };

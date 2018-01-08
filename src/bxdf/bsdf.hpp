@@ -28,21 +28,21 @@ struct bsdf_t : public bxdf_t {
     return c;
   }
 
-  color_t sample(const vector_t& v, sample_t& sample) const {
+  color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
     auto index = std::min((uint8_t) std::floor(sample.u * num_bxdf), num_bxdf);
-    auto f     = bxdfs[index]->sample(v, sample);
+    auto f     = bxdfs[index]->sample(v, sample, out);
 
     for (auto i=0; i<num_bxdf; ++i) {
-      bool reflect = v.y * sample.p.y > 0;
+      bool reflect = v.y * out.sampled.y > 0;
       if (i != index &&
 	  ((reflect && bxdfs[i]->is(REFLECTIVE)) ||
 	   (!reflect && bxdfs[i]->is(TRANSMISSIVE)))) {
-	f += bxdfs[i]->f(sample.p, v);
-	sample.pdf += bxdfs[i]->pdf(sample.p, v);
+	f += bxdfs[i]->f(out.sampled, v);
+	out.pdf += bxdfs[i]->pdf(out.sampled, v);
       }
     }
 
-    sample.pdf /= num_bxdf;
+    out.pdf /= num_bxdf;
     
     return f;
   }

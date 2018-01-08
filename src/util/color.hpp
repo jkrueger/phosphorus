@@ -23,6 +23,11 @@ struct color_t {
     r *= s; g *= s; b *= s;
     return *this;
   }
+
+  inline double y() const {
+    static const double weight[3] = {0.212671, 0.715160, 0.072169};
+    return weight[0] * r + weight[1] * g + weight[2] * b;
+  }
 };
 
 inline color_t operator+(const color_t& l, const color_t& r) {
@@ -46,6 +51,11 @@ inline color_t operator*(const color_t& l, double r) {
   color_t out(l);
   out.scale(r);
   return out;
+}
+
+inline color_t& operator*=(color_t& l, const color_t& r) {
+  l.r *= r.r; l.g *= r.g; l.b *= r.b;
+  return l;
 }
 
 inline color_t operator*(const color_t& l, const color_t& r) {

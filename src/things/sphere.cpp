@@ -15,7 +15,7 @@ bool sphere_t::intersect(const ray_t& ray, shading_info_t& info) const {
 
   if (tca < 0) { return false; }
   
-  auto d2  = dot(l, l) - (tca * tca);
+  auto d2 = dot(l, l) - (tca * tca);
 
   if (d2 > radius2) { return false; }
 
@@ -42,17 +42,19 @@ void sphere_t::shading_parameters(shading_info_t& info, const vector_t& p) const
   info.n.normalize();
 }
 
-void sphere_t::sample(const vector_t& p, sample_t* samples, uint32_t num) const {
+void sphere_t::sample(
+  const vector_t& p,
+  const sample_t* samples,
+  sampled_vector_t* out,
+  uint32_t num) const {
+
   const orthogonal_base base((p - position).normalize());
-  const auto pdf = 1.0 / (M_PI*radius*radius);
 
-  for (auto i=0;i<num; ++i) {
-    const float r   = sqrt(1.0 - samples[i].u * samples[i].u);
-    const float phi = 2 * M_PI * samples[i].v;
+  for (auto i=0; i<num; ++i) {
 
-    vector_t v(cos(phi) * r, samples[i].u, sin(phi) * r);
+    sampling::strategies::uniform_sample_hemisphere(samples[i], out[i]);
 
-    samples[i].pdf = pdf;
-    samples[i].p = base.to_world(v).scale(radius) + position;
+    out[i].pdf *= 1.0 / (radius2 * M_PI);
+    out[i].sampled = base.to_world(out[i].sampled).scale(radius) + position;
   }
 }

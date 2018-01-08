@@ -5,8 +5,10 @@
 #include "thing.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 
 struct scene_t;
 
@@ -14,32 +16,82 @@ struct film_t {
 
   uint32_t width;
   uint32_t height;
+  uint32_t samples;
 
   struct pixel_t {
-    uint8_t n;
-    color_t c;
+    uint16_t n;
+    color_t  c;
 
     pixel_t() : n(0) {}
   };
 
-  pixel_t* samples;
+  struct sample_t {
+    double x, y;
+    color_t c;
+  };
 
-  inline film_t(uint32_t w, uint32_t h)
-    : width(w), height(h) {
-    samples = new pixel_t[w*h];
+  struct area_t {
+    uint32_t x, y, width, height;
+    sample_t* samples;
+  };
+
+  pixel_t* pixels;
+  area_t*  areas;
+
+  std::atomic_int area;
+
+  inline film_t(uint32_t w, uint32_t h, uint32_t s)
+    : width(w), height(h), samples(s), area((w/128) * (h/128)) {
+    pixels = new pixel_t[w*h];
+    areas  = new area_t[(w/128)*(h/128)];
+
+    uint32_t hareas = width/128;
+
+    for (uint32_t y=0; y<height/128; ++y) {
+      for (uint32_t x=0; x<hareas; ++x) {
+	area_t& area = areas[y * hareas + x];
+	area.x       = 128 * x;
+	area.y       = 128 * y;
+	area.width   = 128;
+	area.height  = 128;
+	area.samples = new sample_t[128*128*samples];
+      }
+    }
   }
 
-  inline void expose(uint32_t x, uint32_t y, double sx, double sy, const color_t& c) {
-    uint32_t index = y*width+x;
-    samples[index].c += c *
-      (std::max(0.0, 2.0 - std::abs(sx)) *
-       std::max(0.0, 2.0 - std::abs(sy)));
-    samples[index].n++;
+  inline area_t* next_area() {
+    auto idx = area--;
+    if (idx >= 0) {
+      printf("progress: %d\n", idx);
+      return &areas[idx];
+    }
+    return nullptr;
+  }
+
+  inline void finalize() {
+    printf("finalize\n");
+    for (int i=0; i<(width/128)*(height/128); ++i) {
+      auto& area = areas[i];
+      for (int y=0; y<area.height; ++y) {
+	for (int x=0; x<area.width; ++x) {
+	  uint32_t index = (y*area.width*samples) + (x*samples);
+	  for (int s=0; s<samples; ++s) {
+	    auto& sample = area.samples[index + s];
+	    auto& pixel  = pixels[(area.y + y) * width + (area.x + x)];
+
+	    pixel.c += sample.c *
+	      (std::max(0.0, 2.0 - std::abs(sample.x)) *
+	       std::max(0.0, 2.0 - std::abs(sample.y)));
+	    pixel.n++;
+	  }
+	}
+      }
+    }
   }
 
   inline const color_t pixel(uint32_t x, uint32_t y) const {
-    const auto& sample = samples[y*width+x];
-    return sample.c * (1.0/sample.n);
+    const auto& p = pixels[y*width+x];
+    return p.c * (1.0/p.n);
   }
 };
 
@@ -70,33 +122,49 @@ struct camera_t {
   template<typename Film, typename Lens>
   void snapshot(Film& film, const Lens& lens, const thing_t& scene) {
 
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0,0.125);
+    auto samples_per_dimension = (uint32_t) std::sqrt(film.samples);
+
+    sample_t pixels[film.samples];
+    sampling::strategies::stratified_2d(pixels, (uint32_t) std::sqrt(film.samples));
 
     double ratio = (double) film.width / (double) film.height;
     double stepx = 1.0/film.width;
     double stepy = 1.0/film.height;
-    for (auto y=0; y<film.height; ++y) {
-      for (auto x=0; x<film.width; ++x) {
-	auto ndcx = (-0.5 + x * stepx) * ratio;
-	auto ndcy = 0.5 - y * stepy;
 
-	double sstep = 0.125;
-	for (int i=0; i<8; ++i) {
-	  for (int j=0; j<8; ++j) {
-	    auto sx  = i * sstep + dis(gen);
-	    auto sy  = j * sstep + dis(gen);
-	    auto ray = lens.sample(ray_t({0, 0, -10}, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0}));
-	    ray.direction.normalize();
-	    auto c   = integrator.trace(scene, ray);
-	    film.expose(x, y, sx - 0.5, sy - 0.5, c);
+    std::thread threads[4];
+
+    for (auto t=0; t<4; ++t) {
+      threads[t] = std::thread([&]() {
+	  while (auto area=film.next_area()) {
+	    auto n    = 0;
+	    auto xend = area->x + area->width;
+	    auto yend = area->y + area->height;
+	    for (auto y=area->y; y<yend; ++y) {
+	      for (auto x=area->x; x<xend; ++x) {
+		auto ndcx = (-0.5 + x * stepx) * ratio;
+		auto ndcy = 0.5 - y * stepy;
+
+		for (int i=0; i<film.samples; ++i) {
+		  auto sx  = pixels[i].u - 0.5;
+		  auto sy  = pixels[i].v - 0.5;
+		  ray_t ray({0, 0, -10}, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0});
+		  ray.direction.normalize();
+
+		  auto &sample = area->samples[n++];
+		  sample.c = integrator.trace(scene, ray);
+		  sample.x = sx;
+		  sample.y = sy;
+		}
+	      }
+	    }
 	  }
-	}
-      }
-
-      printf("\rprogress: %d", (uint32_t) (((double)y/(double)film.height) * 100.0));
-      fflush(stdout);
+	});
     }
+
+    for (int t=0; t<4; ++t) {
+      threads[t].join();
+    }
+
+    film.finalize();
   }
 };
