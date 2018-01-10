@@ -19,6 +19,12 @@ struct orthogonal_base {
     c.normalize();
   }
 
+  inline orthogonal_base(const vectpr_t& z, const vector_t& x)
+    : a(x), b(cross(z, x)), c(z)
+  {
+    b.normalize();
+  }
+
   inline vector_t to_world(const vector_t& v) const {
     return v.x * a + v.y * b + v.z * c;
   }

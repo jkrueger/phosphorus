@@ -43,8 +43,6 @@ struct shadable_t : public thing_t {
   inline shadable_t(const vector_t& p, const material_t::p& m)
     : thing_t(p), material(m)
   {}
-
-  virtual void shading_parameters(shading_info_t& info, const vector_t& p) const = 0;
 };
 
 struct things_t : public thing_t {

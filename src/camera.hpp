@@ -105,17 +105,25 @@ namespace lenses {
 
 template<typename Integrator>
 struct camera_t {
-
-  vector_t p;
-  vector_t d;
-  vector_t up;
-  vector_t left;
+  typedef std::shared_ptr<camera_t> p;
+  
+  vector_t        p;
+  orthogonal_base b;
 
   Integrator integrator;
 
-  inline camera_t(vector_t _p, vector_t _d, vector_t _up)
-    : p(_p), d(_d), up(_up), left(cross(d, up))
+  inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up)
+    : p(p), b(d, up)
   {}
+
+  static inline p look_at(
+    const vector_t& p, const vector_t& at,
+    const vector_t& up = vector_t(0.0, 1.0, 0.0)) {
+
+    auto z = normalize(at - p);
+    auto x = normalize(cross(z, up));
+    return p(new camera_t(p, z, up));
+  }
 
   template<typename Film, typename Lens>
   void snapshot(Film& film, const Lens& lens, const thing_t& scene) {
@@ -145,7 +153,7 @@ struct camera_t {
 		for (int i=0; i<film.samples; ++i) {
 		  auto sx  = pixels[i].u - 0.5;
 		  auto sy  = pixels[i].v - 0.5;
-		  ray_t ray({0, 0, -10}, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0});
+		  ray_t ray(p, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0});
 		  ray.direction.normalize();
 
 		  auto &sample = area->samples[n++];
