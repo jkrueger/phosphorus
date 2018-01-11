@@ -63,6 +63,7 @@ struct film_t {
   inline area_t* next_area() {
     auto idx = area--;
     if (idx >= 0) {
+      printf("progress: %d\n", idx);
       return &areas[idx];
     }
     return nullptr;
@@ -138,9 +139,13 @@ struct camera_t {
     double stepx = 1.0/film.width;
     double stepy = 1.0/film.height;
 
-    std::thread threads[4];
+    // automatically use all cores for now
+    uint32_t cores = std::thread::hardware_concurrency();
+    printf("Using %d threads for rendering\n", cores);
 
-    for (auto t=0; t<4; ++t) {
+    std::thread threads[cores];
+
+    for (auto t=0; t<cores; ++t) {
       threads[t] = std::thread([&]() {
 	  while (auto area=film.next_area()) {
 	    auto n    = 0;
@@ -154,7 +159,7 @@ struct camera_t {
 		for (int i=0; i<film.samples; ++i) {
 		  auto sx  = pixels[i].u - 0.5;
 		  auto sy  = pixels[i].v - 0.5;
-		  ray_t ray(position, b.to_world({sx * stepx + ndcx, sy * stepy + ndcy, 1.0}));
+		  ray_t ray({0,1.0,-6.0}, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0});
 		  ray.direction.normalize();
 
 		  auto &sample = area->samples[n++];
@@ -168,7 +173,7 @@ struct camera_t {
 	});
     }
 
-    for (int t=0; t<4; ++t) {
+    for (int t=0; t<cores; ++t) {
       threads[t].join();
     }
 

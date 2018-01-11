@@ -83,12 +83,12 @@ struct shading_info_t {
   {}
 
   template<typename T, typename... XS>
-  inline bool update(const ray_t& ray, double _d, const T& shadable, const XS& ...xs) {
+  inline bool update(const ray_t& ray, double _d, const T* shadable, const XS& ...xs) {
     if (_d < d) {
       d = _d;
       p = ray.at(d);
-      thing = static_cast<const shadable_t*>(&shadable);
-      shadable.shading_parameters(*this, p, xs...);
+      thing = static_cast<const shadable_t*>(shadable);
+      shadable->shading_parameters(*this, p, xs...);
       b  = invertible_base(n);
       return true;
     }

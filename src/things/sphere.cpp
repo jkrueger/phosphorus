@@ -34,7 +34,7 @@ bool sphere_t::intersect(const ray_t& ray, shading_info_t& info) const {
     }
   }
 
-  return info.update(ray, t0, *this);
+  return info.update(ray, t0, this);
 }
 
 void sphere_t::shading_parameters(shading_info_t& info, const vector_t& p) const {

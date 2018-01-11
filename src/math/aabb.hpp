@@ -3,6 +3,7 @@
 #include "ray.hpp"
 #include "vector.hpp"
 
+#include <iostream>
 #include <cmath>
 #include <limits>
 
@@ -12,6 +13,8 @@ struct aabb_t {
   vector_t min, max;
   
   inline aabb_t()
+    : min(std::numeric_limits<double>::max())
+    , max(std::numeric_limits<double>::lowest())
   {}
 
   inline aabb_t(const aabb_t& cpy)
@@ -35,7 +38,7 @@ struct aabb_t {
     uint32_t out = 0;
     double   x   = 0.0;
     for (auto i=0; i<3; ++i) {
-      double extent = std::abs(max.v[i] - min.v[i]);
+      double extent = max.v[i] - min.v[i];
       if (extent > x) {
 	out = i;
 	x = extent;
@@ -48,19 +51,21 @@ struct aabb_t {
     return min.v[axis] == max.v[axis];
   }
 
-  inline bool intersect(const ray_t& ray) const {
+  inline bool intersect(const ray_t& ray, double ood[3], double& t) const {
+    static const double g = std::tgamma(3.0);
+    
     double t0 = 0, t1 = std::numeric_limits<double>::max();
     for (auto i = 0; i < 3; ++i) {
-        double inv_dir = 1 / ray.direction.v[i];
-        double near    = (min.v[i] - ray.origin.v[i]) * inv_dir;
-        double far     = (max.v[i] - ray.origin.v[i]) * inv_dir;
+      double near = (min.v[i] - ray.origin.v[i]) * ood[i];
+      double far  = (max.v[i] - ray.origin.v[i]) * ood[i];
 
-        if (near > far) std::swap(near, far);
+      if (near > far) std::swap(near, far);
 
-        far *= 1 + 2 * tgamma(3);
-        t0 = near > t0 ? near : t0;
-        t1 = far < t1 ? far : t1;
-        if (t0 > t1) return false;
+      far *= 1 + 2 * g;
+      t0 = near > t0 ? near : t0;
+      t1 = far < t1 ? far : t1;
+      if (t0 > t1) { return false; }
+      t = std::min(t, t0);
     }
     return true;
   }
@@ -70,12 +75,8 @@ namespace bounds {
 
   inline aabb_t& merge(aabb_t& l, const vector_t& r) {
     for (auto i=0; i<3; ++i) {
-      if (r.v[i] < l.min.v[i]) {
-	l.min.v[i] = r.v[i];
-      }
-      else if (r.v[i] > l.max.v[i]) {
-	l.max.v[i] = r.v[i];
-      }
+      l.min.v[i] = std::min(l.min.v[i], r.v[i]);
+      l.max.v[i] = std::max(l.max.v[i], r.v[i]);
     }
     return l;
   }
@@ -92,4 +93,8 @@ namespace bounds {
     if (l.max.z > l.min.z) { o.z /= (l.max.z - l.min.z); }
     return o;
   }
+}
+
+inline std::ostream& operator<<(std::ostream& o, const aabb_t& a) {
+  return o << "aabb_t{" << "min=" << a.min << ", max=" << a.max << "}";
 }

@@ -14,7 +14,7 @@ bool plane_t::intersect(const ray_t& ray, shading_info_t& info) const {
     auto d = dot(x, n) / a;
 
     if (d > 0) {
-      return info.update(ray, d, *this);
+      return info.update(ray, d, this);
     }
   }
   return false;

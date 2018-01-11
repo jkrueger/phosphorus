@@ -7,20 +7,18 @@ static const uint8_t MAX_PRIMS_IN_NODE = 4;
 static const uint8_t NUM_SPLIT_BUCKETS = 12;
 
 struct node_t {
-
-  node_t* a, *b;
-
   aabb_t   bounds;
   uint32_t offset;
-  uint32_t num;
+  uint16_t num;
   uint8_t  axis;
+  uint8_t  padding; // pad to 32 byte
 
-  inline node_t(const aabb_t& b, uint32_t o, uint32_t n)
+  inline node_t(const aabb_t& b, uint32_t o, uint16_t n)
     : bounds(b), offset(o), num(n)
   {}
 
-  inline node_t(uint8_t axis, node_t* a, node_t* b)
-    : a(a), b(b), bounds(bounds::merge(a->bounds, b->bounds)), offset(0), num(0), axis(axis)
+  inline node_t(uint8_t axis)
+    : offset(0), axis(axis), num(0)
   {}
 
   inline bool is_leaf() const {
@@ -54,30 +52,63 @@ struct split_info_t {
   {}
 };
 
-struct bvh_t::impl_t {
-  std::vector<thing_t::p> things;
-  node_t*                 root;
+template<typename T>
+struct bvh_t<T>::impl_t {
+  std::vector<typename T::p> things;
+  std::vector<node_t> nodes;
+
+  uint32_t num_nodes;
+  uint32_t max_depth;
+  uint32_t lonely;
+
+  impl_t()
+    : num_nodes(0), max_depth(0), lonely(0)
+  {}
+
+  template<typename... Args>
+  uint32_t make_node(const Args& ...args) {
+    nodes.emplace_back(args...);
+    return num_nodes++;
+  }
+
+  inline const node_t* resolve(uint32_t node) const {
+    return &nodes[node];
+  }
+
+  inline node_t* resolve(uint32_t node) {
+    return &nodes[node];
+  } 
 
   void insert_things(
     uint32_t start, uint32_t end,
     std::vector<build_info_t>& infos,
-    const std::vector<thing_t::p>& unsorted) {
+    const std::vector<typename T::p>& unsorted) {
 
     for (auto i=start; i<end; ++i) {
       things.push_back(unsorted[infos[i].index]);
     }
   }
 
-  node_t* build(
+  void build(
     uint32_t start, uint32_t end,
     std::vector<build_info_t>& infos,
-    const std::vector<thing_t::p>& unsorted) {
-    node_t* out;
+    const std::vector<typename T::p>& unsorted) {
+
+    split(start, end, infos, unsorted, 0);
+  }
+
+  uint32_t split(
+    uint32_t start, uint32_t end,
+    std::vector<build_info_t>& infos,
+    const std::vector<typename T::p>& unsorted,
+    uint32_t depth) {
+    uint32_t out;
 
     auto n = (end - start);
     if (n == 1) {
+      lonely++;
       insert_things(start, end, infos, unsorted);
-      out = new node_t(infos[start].bounds, start, n);
+      out = make_node(infos[start].bounds, start, 1);
     }
     else {
       aabb_t node_bounds, centroid_bounds;
@@ -86,18 +117,20 @@ struct bvh_t::impl_t {
 	node_bounds = bounds::merge(node_bounds, infos[i].bounds);
 	bounds::merge(centroid_bounds, infos[i].centroid);
       }
-      auto axis = centroid_bounds.dominant_axis();
 
-      if (centroid_bounds.empty_on(axis)) {
-	out = new node_t(node_bounds, start, n);
+      if (n <= 2) {
+	insert_things(start, end, infos, unsorted);
+	out = make_node(node_bounds, start, (uint16_t) n);
       }
       else {
 	auto mid = (start + end) / 2;
-	if (n <= 2) {
-	  insert_things(start, end, infos, unsorted);
-	  out = new node_t(node_bounds, start, n);
-	}
-	else {
+
+	uint8_t best_axis   = 0;
+	uint8_t best_bucket = 0;
+	double  best_cost   = std::numeric_limits<double>::max();
+	
+	//auto axis = centroid_bounds.dominant_axis();
+	for (auto axis=0; axis<3; ++axis) {
 	  split_info_t split_infos[NUM_SPLIT_BUCKETS];
 
 	  for (auto i=start; i<end; ++i) {
@@ -116,8 +149,6 @@ struct bvh_t::impl_t {
 
 	  double  split_cost   = std::numeric_limits<double>::max();
 	  uint8_t split_bucket = 0;
-	  auto    split_left   = 0;
-	  auto    split_right  = 0;
 
 	  for (auto i=0; i<NUM_SPLIT_BUCKETS-1; ++i) {
 	    aabb_t a, b;
@@ -137,92 +168,134 @@ struct bvh_t::impl_t {
 	    if (cost < split_cost) {
 	      split_cost   = cost;
 	      split_bucket = i;
-	      split_left   = left;
-	      split_right  = right;
 	    }
 	  }
 
+	  if (split_cost < best_cost) {
+	    best_axis   = axis;
+	    best_cost   = split_cost;
+	    best_bucket = split_bucket;
+	  }
+	}
+
+	if (centroid_bounds.empty_on(best_axis)) {
+	  insert_things(start, end, infos, unsorted);
+	  out = make_node(node_bounds, start, (uint16_t) n);
+	}
+	else {
 	  double leaf_cost = n;
-	  if (split_left != n && split_right != n &&
-	      (n > MAX_PRIMS_IN_NODE || split_cost < leaf_cost)) {
+	  if ((n > MAX_PRIMS_IN_NODE || best_cost < leaf_cost)) {
 	    auto p =
 	      std::partition(
 	        &infos[start], &infos[end-1] + 1,
 		[=](const build_info_t& info) {
-		  auto offset = bounds::offset(centroid_bounds, info.centroid).v[axis];
+		  auto offset = bounds::offset(centroid_bounds, info.centroid).v[best_axis];
 		  auto bucket =
-		    std::min(
-		      (int) (NUM_SPLIT_BUCKETS * offset),
-		      NUM_SPLIT_BUCKETS-1);
-		  return bucket <= split_bucket;
+		  std::min(
+		    (int) (NUM_SPLIT_BUCKETS * offset),
+		    NUM_SPLIT_BUCKETS-1);
+		  return bucket <= best_bucket;
 		});
+
 	    mid = p - &infos[0];
-	    out =
-	      new node_t(
-	        axis,
-		build(start, mid, infos, unsorted),
-		build(mid, end, infos, unsorted));
+	    out = make_node(best_axis);
+
+	    auto near = split(start, mid, infos, unsorted, depth+1);
+	    auto far  = split(mid, end, infos, unsorted, depth+1);
+	  
+	    node_t* a      = resolve(near);
+	    node_t* b      = resolve(far);
+	    node_t* parent = resolve(out);
+	    parent->offset = far;
+	    parent->bounds = bounds::merge(a->bounds, b->bounds);
 	  }
 	  else {
 	    insert_things(start, end, infos, unsorted);
-	    out = new node_t(node_bounds, start, n);
+	    out = make_node(node_bounds, start, (uint16_t) n);
 	  }
 	}
       }
     }
-
+    max_depth = std::max(max_depth, depth);
     return out;
   }
 };
 
-bvh_t::bvh_t()
+template<typename T>
+bvh_t<T>::bvh_t()
   : impl(new impl_t())
 {}
 
-void bvh_t::build(const std::vector<thing_t::p>& things) {
+template<typename T>
+void bvh_t<T>::build(const std::vector<typename T::p>& things) {
   std::vector<build_info_t> infos(things.size());
-
+  std::cout << "build" << std::endl;
   for (uint32_t i=0; i<things.size(); ++i) {
     infos[i] = build_info_t(i, things[i]->bounds());
   }
-  impl->root = impl->build(0, (uint32_t) infos.size(), infos, things);
+  std::cout << "build2" << std::endl;
+  impl->build(0, (uint32_t) infos.size(), infos, things);
+
+  std::clog
+    << "Finished building BVH. Extent: "
+    << impl->nodes[0].bounds
+    << std::endl
+    << "With number of nodes: " << impl->num_nodes
+    << ", depth=" << impl->max_depth
+    << ", lonely=" << impl->lonely
+    << std::endl;
 }
 
-bool bvh_t::intersect(const ray_t& ray, shading_info_t& info) const {
-  static thread_local node_t* stack[64];
+std::atomic<uint32_t> rays(0);
+std::atomic<uint32_t> max_tris(0);
+std::atomic<uint64_t> tot_tris(0);
+
+template<typename T>
+bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
+  uint32_t stack[128];
+
+  double ood[] = { 1.0/ray.direction.x, 1.0/ray.direction.y, 1.0/ray.direction.z };
+
+  uint32_t nodes = 0;
+  uint32_t tris  = 0;
 
   bool hit_anything = false;
-  if (impl->root) {
-    auto cur  = 0;
-    auto node = const_cast<node_t*>(impl->root);
+  if (impl->num_nodes > 0) {
+    auto top = 0;
+    auto cur = 0;
     while (true) {
-      if (node->bounds.intersect(ray)) {
+      auto node = impl->resolve(cur);
+      double d  = std::numeric_limits<double>::max();
+      if (node->bounds.intersect(ray, ood, d) && d <= info.d) {
 	if (node->is_leaf()) {
 	  for (int i=node->offset; i<(node->offset+node->num); ++i) {
+	    nodes = std::max(nodes, (uint32_t)node->num);
 	    if (impl->things[i]->intersect(ray, info)) {
 	      hit_anything = true;
 	    }
 	  }
-	  if (cur == 0) { break; }
-	  node = stack[--cur];
+	  if (top == 0) { break; }
+	  cur = stack[--top];
 	}
 	else {
-	  if (ray.direction.v[node->axis]) {
-	    stack[cur++] = node->b;
-	    node = node->a;
+	  if (ray.direction.v[node->axis] < 0.0) {
+	    stack[top++] = node->offset;
+	    cur = cur + 1;
 	  }
 	  else {
-	    stack[cur++] = node->a;
-	    node = node->b;
+	    stack[top++] = cur + 1;
+	    cur = node->offset;
 	  }
 	}
       }
       else {
-	if (cur == 0) { break; }
-	node = stack[--cur];
+	if (top == 0) { break; }
+	cur = stack[--top];
       }
     }
   }
-
   return hit_anything;
 }
+
+template class bvh_t<thing_t>;
+template class bvh_t<triangle_t>;

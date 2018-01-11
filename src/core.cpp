@@ -31,28 +31,29 @@ int main(int argc, char** argv) {
   film_t film(WIDTH, HEIGHT, 16);
   lenses::pinhole_t lens;
   auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({2,3,-3}, 0.25, white)), L));
+  printf("Loading mesh\n");
+  auto mesh = codec::mesh::ply::load("bunny.ply", orange);
 
-  auto mesh = codec::mesh::ply::load("bunny.ply", white);
-
-  std::vector<thing_t::p> things;
+  printf("Tesselating mesh: %d, %d\n", mesh->num_vertices, mesh->num_faces);
+  std::vector<triangle_t::p> things;
   mesh->tesselate(things);
 
-  auto plane0 = thing_t::p(new plane_t({0, 0, 0}, {0, 1.0, 0}, white));
+  auto plane0 = thing_t::p(new plane_t({0, -1.0, 0}, {0, 1.0, 0}, white));
   auto plane1 = thing_t::p(new plane_t({0, 0, 10.0}, {0, 0, -1.0}, white));
   auto plane2 = thing_t::p(new plane_t({-10.0,  0, 0}, {1.0, 0, 0}, white));
   auto plane3 = thing_t::p(new plane_t({10.0, 0, 0}, {-1.0, 0, 0}, white));
   things_t scene;
-  bvh_t::p bvh(new bvh_t());
+  mesh_bvh_t::p bvh(new mesh_bvh_t());
   printf("preprocessing\n");
   bvh->build(things);
   scene.add(plane0);
-  scene.add(plane1);
-  scene.add(plane2);
-  scene.add(plane3);
+  //scene.add(plane1);
+  //scene.add(plane2);
+  //scene.add(plane3);
   scene.add(light0);
   scene.add(bvh);
 
-  auto camera = camera_t<path_tracer_t>::look_at({0,2,-10}, {0,0,0});
+  auto camera = camera_t<path_tracer_t>::look_at({0,2.0,-8.0}, {0,0,0});
   camera->integrator.emitters.push_back(light0);
   printf("rendering\n");
   camera->snapshot(film, lens, scene);

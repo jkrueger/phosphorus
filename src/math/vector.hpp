@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #include <math.h>
 
 struct vector_t {
@@ -16,6 +18,10 @@ struct vector_t {
 
   inline vector_t(const vector_t& cpy)
     : x(cpy.x), y(cpy.y), z(cpy.z)
+  {}
+
+  inline vector_t(double i)
+    : x(i), y(i), z(i)
   {}
 
   inline vector_t(double _x, double _y, double _z)
@@ -80,6 +86,11 @@ inline vector_t operator+(const vector_t& l, const vector_t& r) {
   return vector_t(l.x+r.x, l.y+r.y, l.z+r.z);
 }
 
+inline vector_t& operator+=(vector_t& l, const vector_t& r) {
+  l.x+=r.x; l.y+=r.y; l.z+=r.z;
+  return l;
+}
+
 inline vector_t operator+(const vector_t& l, double r) {
   return vector_t(l.x+r, l.y+r, l.z+r);
 }
@@ -106,4 +117,8 @@ inline vector_t normalize(const vector_t& v) {
 
 inline vector_t reflect(const vector_t& v, const vector_t& n) {
   return -v + 2 * dot(v, n) * n;
+}
+
+inline std::ostream& operator<<(std::ostream& o, const vector_t& v) {
+  return o << "vector_t{" << v.x << ", " << v.y << ", " << v.z << "}";
 }

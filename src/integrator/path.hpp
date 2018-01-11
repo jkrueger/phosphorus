@@ -65,7 +65,6 @@ struct path_tracer_t {
 
   color_t direct(const thing_t& scene, shading_info_t& info, const ray_t& ray) const {
     color_t direct;
-
     auto bxdf = info.bxdf();
 
     if (emitters.size() > 0 && bxdf->has_distribution()) {
@@ -78,7 +77,7 @@ struct path_tracer_t {
       for (auto& emitter : emitters) {
 	if (static_cast<const thing_t*>(emitter.get()) !=
 	    static_cast<const thing_t*>(info.thing)) {
-
+	  
 	  sampling::strategies::stratified_2d(uv, 3);
 	  emitter->sample(info.p, uv, light_samples, SHADOW_SAMPLES); 
 
@@ -92,7 +91,6 @@ struct path_tracer_t {
 	      if (scene.intersect(ray_t(info.p + info.n * 0.0001, in), shadow)) {
 		if (static_cast<const thing_t*>(emitter->thing.get()) ==
 		    static_cast<const thing_t*>(shadow.thing)) {
-
 		  auto il = info.b.to_local(in);
 		  auto ol = info.b.to_local(out);
 		  auto s  = il.y/(sample.pdf*shadow.d*shadow.d);

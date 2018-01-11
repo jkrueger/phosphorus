@@ -1,17 +1,19 @@
 #pragma once
 
 #include "thing.hpp"
+#include "mesh.hpp"
 
 #include <memory>
 
+template<typename T>
 struct bvh_t : public thing_t {
   typedef std::shared_ptr<bvh_t> p;
   
   struct impl_t;
 
   bvh_t();
-  
-  void build(const std::vector<thing_t::p>& things);
+
+  void build(const std::vector<typename T::p>& things);
   
   bool intersect(const ray_t&, shading_info_t&) const;
 
@@ -27,3 +29,6 @@ struct bvh_t : public thing_t {
 
   std::shared_ptr<impl_t> impl;
 };
+
+typedef bvh_t<thing_t>    general_bvh_t;
+typedef bvh_t<triangle_t> mesh_bvh_t;

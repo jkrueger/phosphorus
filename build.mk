@@ -1,8 +1,8 @@
 include $(TOP)/build/header.mk
 
-products_$(d) := manta
+products_$(d) := rayray
 
-manta_sources_$(d) += \
+rayray_sources_$(d) += \
 	core.cpp \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
@@ -16,13 +16,13 @@ manta_sources_$(d) += \
         material/mirror.cpp \
         material/glass.cpp
 
-manta_precompiled_$(d) :=
-manta_target_dir_$(d)  := bin
+rayray_precompiled_$(d) :=
+rayray_target_dir_$(d)  := bin
 ifdef DEBUG
-manta_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g
+rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src
 else
-manta_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -O3
+rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -O3
 endif
-manta_ld_flags_$(d)    := -lIlmImf -lHalf -lIex
+rayray_ld_flags_$(d)    := -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply
 
 include $(TOP)/build/footer.mk
