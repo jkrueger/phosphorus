@@ -6,8 +6,10 @@ manta_sources_$(d) += \
 	core.cpp \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
+        codec/mesh/ply.cpp \
 	things/sphere.cpp \
         things/plane.cpp \
+        things/mesh.cpp \
         things/bvh.cpp \
         material/diffuse.cpp \
         material/plastic.cpp \
@@ -19,7 +21,7 @@ manta_target_dir_$(d)  := bin
 ifdef DEBUG
 manta_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g
 else
-manta_cxx_flags_$(d)   := -std=c++14 -Isrc/ -O3
+manta_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -O3
 endif
 manta_ld_flags_$(d)    := -lIlmImf -lHalf -lIex
 

@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   lenses::pinhole_t lens;
   auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({2,3,-3}, 0.25, white)), L));
 
-  auto mesh = codec::mesh::ply::load("bunny.ply");
+  auto mesh = codec::mesh::ply::load("bunny.ply", white);
 
   std::vector<thing_t::p> things;
   mesh->tesselate(things);
@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
   scene.add(bvh);
 
   auto camera = camera_t<path_tracer_t>::look_at({0,2,-10}, {0,0,0});
-  camera.integrator.emitters.push_back(light0);
+  camera->integrator.emitters.push_back(light0);
   printf("rendering\n");
-  camera.snapshot(film, lens, scene);
+  camera->snapshot(film, lens, scene);
   codec::image::exr::save("out.exr", film);
   printf("done\n");
 

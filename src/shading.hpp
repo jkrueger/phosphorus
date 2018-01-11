@@ -88,7 +88,7 @@ struct shading_info_t {
       d = _d;
       p = ray.at(d);
       thing = static_cast<const shadable_t*>(&shadable);
-      thing->shading_parameters(*this, p, xs...);
+      shadable.shading_parameters(*this, p, xs...);
       b  = invertible_base(n);
       return true;
     }

@@ -1,6 +1,6 @@
 #include "mesh.hpp"
 
-void mesh_t::tesselate(std::vector_t<triangle_t::p>& out) const {
+void mesh_t::tesselate(const std::vector<thing_t::p>& out) const {
   for (auto& triangle : triangles) {
     out.push_back(triangle);
   }
@@ -15,7 +15,7 @@ bool mesh_t::intersect(const ray_t& ray, shading_info_t& info) const {
   return hit_anything;
 }
 
-void mesh_t::sample(const vector_t&, const sample_t&, sampled_vector_t&, uint32_t) const {
+void mesh_t::sample(const vector_t&, const sample_t*, sampled_vector_t*, uint32_t) const {
   throw std::runtime_error("Sampling of meshes not implemented");
 }
 
@@ -49,7 +49,7 @@ bool triangle_t::intersect(const ray_t& ray, shading_info_t& info) const {
   return info.update(ray, dot(v0v2, q), mesh);
 }
 
-void triangle_t::sample(const vector_t&, const sample_t&, sampled_vector_t&, uint32_t) const {
+void triangle_t::sample(const vector_t&, const sample_t*, sampled_vector_t*, uint32_t) const {
   throw std::runtime_error("Sampling of triangles not implemented");
 }
 
@@ -57,4 +57,12 @@ void triangle_t::shading_parameters(shading_info&, const vector_t&, double u, do
   auto w = (1 - u - v);
   info.n = u * mesh->normals[b] + v * mesh->normals[b] + w * mesh->normals[c];
   info.n.normalize();
+}
+
+aabb_t triangle_t::bounds() const {
+  aabb_t out;
+  bounds::merge(out, mesh->vertices[a]);
+  bounds::merge(out, mesh->vertices[b]);
+  bounds::merge(out, mesh->vertices[c]);
+  return out;
 }
