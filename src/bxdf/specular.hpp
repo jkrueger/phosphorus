@@ -1,19 +1,20 @@
 #pragma once
 
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include <cmath>
 
 namespace bxdf {
   struct simple_specular_t : public bxdf_t {
-    double  s;
+    float_t  s;
     color_t k;
 
     simple_specular_t()
       : bxdf_t(SPECULAR)
     {}
 
-    inline void set(const color_t& _k, double _s) {
+    inline void set(const color_t& _k, float_t _s) {
       k = _k; s = _s;
     }
 
@@ -26,7 +27,7 @@ namespace bxdf {
       return k * (1.0 / M_PI);
     }
 
-    inline double pdf(const vector_t& in, const vector_t& out) const {
+    inline float_t pdf(const vector_t& in, const vector_t& out) const {
       return in.y * (1.0 / M_PI);
     }
   };

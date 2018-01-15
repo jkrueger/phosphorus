@@ -1,24 +1,32 @@
 #pragma once
 
+#include "precision.hpp"
 #include "math/ray.hpp"
 #include "math/sampling.hpp"
 #include "shading.hpp"
 #include "thing.hpp"
 #include "things/light.hpp"
 #include "util/color.hpp"
+#include "util/stats.hpp"
 
 #include "bxdf/lambert.hpp"
 
 std::random_device rd;
 std::mt19937 gen(rd());
-std::uniform_real_distribution<> dis(0.0,1.0);
+std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
 struct path_tracer_t {
 
-  static const uint32_t SHADOW_SAMPLES = 9;
-  static const uint8_t  MAX_DEPTH = 8;
+  static const uint32_t SHADOW_SAMPLES = 1;
+  static const uint8_t  MAX_DEPTH = 1;
 
   std::vector<light_t::p> emitters;
+
+  stats_t::p stats;
+
+  path_tracer_t(stats_t::p stats)
+    : stats(stats)
+  {}
 
   color_t trace(const thing_t& scene, const ray_t& ray) const {
     color_t out;
@@ -27,6 +35,7 @@ struct path_tracer_t {
 
     uint8_t depth = 0;
     while (depth <= MAX_DEPTH) {
+      stats->rays++;
 
       shading_info_t info;
       if (scene.intersect(path, info)) {
@@ -50,11 +59,11 @@ struct path_tracer_t {
       beta = beta * (r * (std::abs(dot(path.direction, info.n)) / next.pdf));
 
       if (depth > 3) {
-	double q = std::max((double) 0.05, 1.0 - beta.y());
+	float_t q = std::max((float_t) 0.05f, 1.0f - beta.y());
 	if (dis(gen) < q) {
 	  break;
 	}
-	beta *= (1.0 / (1.0 - q));
+	beta *= (1.0f / (1.0f - q));
       }
 
       ++depth;
@@ -77,8 +86,8 @@ struct path_tracer_t {
       for (auto& emitter : emitters) {
 	if (static_cast<const thing_t*>(emitter.get()) !=
 	    static_cast<const thing_t*>(info.thing)) {
-	  
-	  sampling::strategies::stratified_2d(uv, 3);
+
+	  sampling::strategies::stratified_2d(uv, 1);
 	  emitter->sample(info.p, uv, light_samples, SHADOW_SAMPLES); 
 
 	  color_t light;
@@ -88,6 +97,8 @@ struct path_tracer_t {
 
 	    if (dot(in, info.n) > 0) {
 	      shading_info_t shadow;
+
+	      stats->rays++;
 	      if (scene.intersect(ray_t(info.p + info.n * 0.0001, in), shadow)) {
 		if (static_cast<const thing_t*>(emitter->thing.get()) ==
 		    static_cast<const thing_t*>(shadow.thing)) {

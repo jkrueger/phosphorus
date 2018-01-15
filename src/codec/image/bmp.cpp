@@ -60,9 +60,9 @@ void codec::image::bmp::save(const std::string& path, const film_t& film) {
     for (auto x=0; x<film.width; ++x) {
       auto index = y*line_size+(x*4);
       auto color = film.pixel(x, film.height - (y + 1));
-      data[index    ] = clamp(color.b, 0.0, 1.0) * 255.0;
-      data[index + 1] = clamp(color.g, 0.0, 1.0) * 255.0;
-      data[index + 2] = clamp(color.r, 0.0, 1.0) * 255.0;
+      data[index    ] = clamp(color.b, 0.0f, 1.0f) * 255.0;
+      data[index + 1] = clamp(color.g, 0.0f, 1.0f) * 255.0;
+      data[index + 2] = clamp(color.r, 0.0f, 1.0f) * 255.0;
       data[index + 3] = 255;
     }
   }

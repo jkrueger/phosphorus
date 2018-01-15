@@ -1,5 +1,6 @@
 #pragma once
 
+#include "precision.hpp"
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
 #include "math/vector.hpp"
@@ -34,7 +35,7 @@ struct bxdf_t {
     throw std::runtime_error("Sample not implemented for this bxdf");
   }
 
-  virtual double pdf(const vector_t& in, const vector_t& out) const {
+  virtual float_t pdf(const vector_t& in, const vector_t& out) const {
     return 0.0;
   }
 
@@ -69,7 +70,7 @@ struct bxdf_t {
 };
 
 struct shading_info_t {
-  double          d;
+  float_t          d;
   vector_t        p;
   vector_t        n;
   invertible_base b;
@@ -79,11 +80,11 @@ struct shading_info_t {
   const shadable_t* thing;
 
   inline shading_info_t()
-    : d(std::numeric_limits<double>::max())
+    : d(std::numeric_limits<float_t>::max())
   {}
 
   template<typename T, typename... XS>
-  inline bool update(const ray_t& ray, double _d, const T* shadable, const XS& ...xs) {
+  inline bool update(const ray_t& ray, float_t _d, const T* shadable, const XS& ...xs) {
     if (_d < d) {
       d = _d;
       p = ray.at(d);

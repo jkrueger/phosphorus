@@ -1,4 +1,5 @@
 #include "bvh.hpp"
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include <algorithm>
@@ -127,7 +128,7 @@ struct bvh_t<T>::impl_t {
 
 	uint8_t best_axis   = 0;
 	uint8_t best_bucket = 0;
-	double  best_cost   = std::numeric_limits<double>::max();
+	float_t  best_cost   = std::numeric_limits<float_t>::max();
 	
 	//auto axis = centroid_bounds.dominant_axis();
 	for (auto axis=0; axis<3; ++axis) {
@@ -147,7 +148,7 @@ struct bvh_t<T>::impl_t {
 		infos[i].bounds);
 	  }
 
-	  double  split_cost   = std::numeric_limits<double>::max();
+	  float_t  split_cost   = std::numeric_limits<float_t>::max();
 	  uint8_t split_bucket = 0;
 
 	  for (auto i=0; i<NUM_SPLIT_BUCKETS-1; ++i) {
@@ -163,8 +164,8 @@ struct bvh_t<T>::impl_t {
 	      right += split_infos[j].count;
 	    }
 
-	    double cost =
-	      1.0 + (left * a.area() + right * b.area()) / node_bounds.area();
+	    float_t cost =
+	      1.0f + (left * a.area() + right * b.area()) / node_bounds.area();
 	    if (cost < split_cost) {
 	      split_cost   = cost;
 	      split_bucket = i;
@@ -183,7 +184,7 @@ struct bvh_t<T>::impl_t {
 	  out = make_node(node_bounds, start, (uint16_t) n);
 	}
 	else {
-	  double leaf_cost = n;
+	  float_t leaf_cost = n;
 	  if ((n > MAX_PRIMS_IN_NODE || best_cost < leaf_cost)) {
 	    auto p =
 	      std::partition(
@@ -229,11 +230,9 @@ bvh_t<T>::bvh_t()
 template<typename T>
 void bvh_t<T>::build(const std::vector<typename T::p>& things) {
   std::vector<build_info_t> infos(things.size());
-  std::cout << "build" << std::endl;
   for (uint32_t i=0; i<things.size(); ++i) {
     infos[i] = build_info_t(i, things[i]->bounds());
   }
-  std::cout << "build2" << std::endl;
   impl->build(0, (uint32_t) infos.size(), infos, things);
 
   std::clog
@@ -246,51 +245,55 @@ void bvh_t<T>::build(const std::vector<typename T::p>& things) {
     << std::endl;
 }
 
-std::atomic<uint32_t> rays(0);
-std::atomic<uint32_t> max_tris(0);
-std::atomic<uint64_t> tot_tris(0);
-
 template<typename T>
 bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
-  uint32_t stack[128];
+  static thread_local uint32_t stack[128];
 
-  double ood[] = { 1.0/ray.direction.x, 1.0/ray.direction.y, 1.0/ray.direction.z };
-
-  uint32_t nodes = 0;
-  uint32_t tris  = 0;
+  const float_t ood[] =
+    { 1.0f/ray.direction.x,
+      1.0f/ray.direction.y,
+      1.0f/ray.direction.z,
+      0.0f };
 
   bool hit_anything = false;
   if (impl->num_nodes > 0) {
-    auto top = 0;
-    auto cur = 0;
-    while (true) {
+    // setup traverse stack
+    auto top = 1;
+    stack[0] = 0;
+    while (top > 0) {
+      auto cur  = stack[--top];
       auto node = impl->resolve(cur);
-      double d  = std::numeric_limits<double>::max();
-      if (node->bounds.intersect(ray, ood, d) && d <= info.d) {
-	if (node->is_leaf()) {
-	  for (int i=node->offset; i<(node->offset+node->num); ++i) {
-	    nodes = std::max(nodes, (uint32_t)node->num);
-	    if (impl->things[i]->intersect(ray, info)) {
-	      hit_anything = true;
-	    }
-	  }
-	  if (top == 0) { break; }
-	  cur = stack[--top];
-	}
-	else {
-	  if (ray.direction.v[node->axis] < 0.0) {
-	    stack[top++] = node->offset;
-	    cur = cur + 1;
-	  }
-	  else {
-	    stack[top++] = cur + 1;
-	    cur = node->offset;
+      if (node->is_leaf()) {
+	for (int i=node->offset; i<(node->offset+node->num); ++i) {
+	  if (impl->things[i]->intersect(ray, info)) {
+	    hit_anything = true;
 	  }
 	}
       }
       else {
-	if (top == 0) { break; }
-	cur = stack[--top];
+	float_t d0, d1;
+	bool hita = impl->resolve(cur+1)->bounds.intersect(ray, ood, d0);
+	bool hitb = impl->resolve(node->offset)->bounds.intersect(ray, ood, d1);
+	
+	hita = hita && d0 <= info.d;
+	hitb = hitb && d1 <= info.d;
+	
+	if (hita && hitb) {
+	  if (d0 <= d1) {
+	    stack[top++] = node->offset;
+	    stack[top++] = cur + 1;
+	  }
+	  else {
+	    stack[top++] = cur + 1;
+	    stack[top++] = node->offset;
+	  }
+	}
+	else if (hita) {
+	  stack[top++] = cur + 1;
+	}
+	else if (hitb) {
+	  stack[top++] = node->offset;
+	}
       }
     }
   }

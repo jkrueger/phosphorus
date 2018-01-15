@@ -1,9 +1,11 @@
 #pragma once
 
-#include "util/color.hpp"
+#include "precision.hpp"
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
 #include "thing.hpp"
+#include "util/color.hpp"
+#include "util/stats.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -27,7 +29,7 @@ struct film_t {
   };
 
   struct sample_t {
-    double x, y;
+    float_t x, y;
     color_t c;
   };
 
@@ -39,10 +41,13 @@ struct film_t {
   pixel_t* pixels;
   area_t*  areas;
 
+  uint32_t        num_areas;
   std::atomic_int area;
 
   inline film_t(uint32_t w, uint32_t h, uint32_t s)
-    : width(w), height(h), samples(s), area((w/128) * (h/128)) {
+    : width(w), height(h), samples(s),
+      num_areas((w/128) * (h/128)),
+      area(num_areas) {
     pixels = new pixel_t[w*h];
     areas  = new area_t[(w/128)*(h/128)];
 
@@ -63,7 +68,6 @@ struct film_t {
   inline area_t* next_area() {
     auto idx = area--;
     if (idx >= 0) {
-      printf("progress: %d\n", idx);
       return &areas[idx];
     }
     return nullptr;
@@ -80,8 +84,8 @@ struct film_t {
 	    auto& pixel  = pixels[(area.y + y) * width + (area.x + x)];
 
 	    pixel.c += sample.c *
-	      (std::max(0.0, 2.0 - std::abs(sample.x)) *
-	       std::max(0.0, 2.0 - std::abs(sample.y)));
+	      (std::max(0.0f, 2.0f - std::abs(sample.x)) *
+	       std::max(0.0f, 2.0f - std::abs(sample.y)));
 	    pixel.n++;
 	  }
 	}
@@ -114,17 +118,20 @@ struct camera_t {
 
   Integrator integrator;
 
-  inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up)
-    : position(p), b(d, up)
+  stats_t::p stats;
+
+  inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
+    : position(p), b(d, up), integrator(stats), stats(stats)
   {}
 
   static inline p look_at(
+    stats_t::p& stats,
     const vector_t& pos, const vector_t& at,
     const vector_t& up = vector_t(0.0, 1.0, 0.0)) {
 
     auto z = normalize(at - pos);
     auto x = normalize(cross(z, up));
-    return p(new camera_t(pos, z, up));
+    return p(new camera_t(pos, z, up, stats));
   }
 
   template<typename Film, typename Lens>
@@ -135,9 +142,9 @@ struct camera_t {
     sample_t pixels[film.samples];
     sampling::strategies::stratified_2d(pixels, (uint32_t) std::sqrt(film.samples));
 
-    double ratio = (double) film.width / (double) film.height;
-    double stepx = 1.0/film.width;
-    double stepy = 1.0/film.height;
+    float_t ratio = (float_t) film.width / (float_t) film.height;
+    float_t stepx = 1.0/film.width;
+    float_t stepy = 1.0/film.height;
 
     // automatically use all cores for now
     uint32_t cores = std::thread::hardware_concurrency();
@@ -153,13 +160,14 @@ struct camera_t {
 	    auto yend = area->y + area->height;
 	    for (auto y=area->y; y<yend; ++y) {
 	      for (auto x=area->x; x<xend; ++x) {
-		auto ndcx = (-0.5 + x * stepx) * ratio;
-		auto ndcy = 0.5 - y * stepy;
+		auto ndcx = (-0.5f + x * stepx) * ratio;
+		auto ndcy = 0.5f - y * stepy;
 
 		for (int i=0; i<film.samples; ++i) {
-		  auto sx  = pixels[i].u - 0.5;
-		  auto sy  = pixels[i].v - 0.5;
-		  ray_t ray({0,1.0,-6.0}, {sx * stepx + ndcx, sy * stepy + ndcy, 1.0});
+		  auto sx  = pixels[i].u - 0.5f;
+		  auto sy  = pixels[i].v - 0.5f;
+
+		  ray_t ray(position, b.to_world({sx * stepx + ndcx, sy * stepy + ndcy, 1.0f}));
 		  ray.direction.normalize();
 
 		  auto &sample = area->samples[n++];
@@ -169,12 +177,15 @@ struct camera_t {
 		}
 	      }
 	    }
+	    stats->areas++;
 	  }
 	});
     }
 
     for (int t=0; t<cores; ++t) {
-      threads[t].join();
+      if (threads[t].joinable()) {
+	threads[t].join();
+      }
     }
 
     film.finalize();

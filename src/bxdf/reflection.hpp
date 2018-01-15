@@ -1,5 +1,6 @@
 #pragma once
 
+#include "precision.hpp"
 #include "shading.hpp"
 #include "util/algo.hpp"
 
@@ -7,31 +8,31 @@
 
 namespace fresnel {
   struct none_t {
-    inline color_t operator()(double a) const {
+    inline color_t operator()(float_t a) const {
       return color_t(1, 1, 1);
     }
   };
 
   struct dielectric_t {
-    double etaI, etaT;
+    float_t etaI, etaT;
 
-    inline dielectric_t(double eI, double eT)
+    inline dielectric_t(float_t eI, float_t eT)
       : etaI(eI), etaT(eT)
     {}
 
-    inline color_t operator()(double a) const {
+    inline color_t operator()(float_t a) const {
       auto eI = etaI, eT = etaT; 
-      auto cosTI    = clamp(a, -1.0, 1.0);
+      auto cosTI    = clamp(a, -1.0f, 1.0f);
       bool entering = cosTI > 0;
       if (entering) {
 	std::swap(eI, eT);
       }
-      auto sinI = std::sqrt(std::max(0.0, 1.0 - cosTI * cosTI));
+      auto sinI = std::sqrt(std::max(0.0f, 1.0f - cosTI * cosTI));
       auto sinT = eI / eT * sinI;
       if (sinT >= 1) {
 	return 1;
       }
-      auto cosTT = std::sqrt(std::max(0.0, 1.0 - sinT * sinT));
+      auto cosTT = std::sqrt(std::max(0.0f, 1.0f - sinT * sinT));
 
       auto r_parl =
 	((eT * cosTI) - (eI * cosTT)) /
@@ -40,7 +41,7 @@ namespace fresnel {
 	((eI * cosTI) - (eT * cosTT)) /
 	((eI * cosTI) + (eT * cosTT));
 
-      return (r_parl * r_parl + r_perp * r_perp) * 0.5;
+      return (r_parl * r_parl + r_perp * r_perp) * 0.5f;
     }
   };
 }
@@ -63,7 +64,7 @@ namespace bxdf {
       return (k * fresnel(cos_n)) * (1.0 / std::abs(cos_n));
     }
 
-    double pdf(const vector_t&, const vector_t&) const {
+    float_t pdf(const vector_t&, const vector_t&) const {
       return 0.0;
     }
   };
@@ -71,11 +72,11 @@ namespace bxdf {
   template<typename Fresnel>
   struct specular_transmission_t : public bxdf_t {
     Fresnel fresnel;
-    double  etaA, etaB;
+    float_t  etaA, etaB;
     color_t k;
 
     template<typename... Args>
-    specular_transmission_t(double eA, double eB, const Args& ...args)
+    specular_transmission_t(float_t eA, float_t eB, const Args& ...args)
       : bxdf_t(bxdf_t::TRANSMISSIVE), fresnel(eA, eB, args...)
     {}
 
@@ -108,7 +109,7 @@ namespace bxdf {
       return spectrum * (1.0 / std::abs(out.sampled.y));
     }
 
-    double pdf(const vector_t&, const vector_t&) const {
+    float_t pdf(const vector_t&, const vector_t&) const {
       return 0.0;
     }
   };

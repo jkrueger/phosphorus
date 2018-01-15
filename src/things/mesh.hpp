@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mesh.hpp"
 #include "thing.hpp"
 
 struct mesh_t;
@@ -17,7 +18,7 @@ struct triangle_t : public shadable_t {
 
   void sample(const vector_t&, const sample_t*, sampled_vector_t*, uint32_t) const;
 
-  void shading_parameters(shading_info_t&, const vector_t&, double u, double v) const;
+  void shading_parameters(shading_info_t&, const vector_t&, float_t u, float_t v) const;
 
   aabb_t bounds() const;
 };

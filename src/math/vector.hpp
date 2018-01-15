@@ -1,5 +1,7 @@
 #pragma once
 
+#include "precision.hpp"
+
 #include <iostream>
 
 #include <math.h>
@@ -7,9 +9,9 @@
 struct vector_t {
   union {
     struct {
-      double x,y,z;
+      float_t x,y,z;
     };
-    double v[3];
+    float_t v[3];
   };
 
   inline vector_t()
@@ -20,24 +22,24 @@ struct vector_t {
     : x(cpy.x), y(cpy.y), z(cpy.z)
   {}
 
-  inline vector_t(double i)
+  inline vector_t(float_t i)
     : x(i), y(i), z(i)
   {}
 
-  inline vector_t(double _x, double _y, double _z)
+  inline vector_t(float_t _x, float_t _y, float_t _z)
     : x(_x), y(_y), z(_z)
   {}
 
-  inline vector_t& scale(double s) {
+  inline vector_t& scale(float_t s) {
     x *= s; y *= s; z *= s;
     return *this;
   }
 
-  inline double length2() const {
+  inline float_t length2() const {
     return dot(*this, *this);
   }
 
-  inline double length() const {
+  inline float_t length() const {
     return sqrt(length2());
   }
 
@@ -56,7 +58,7 @@ struct vector_t {
     return out;
   }
 
-  inline friend double dot(const vector_t& l, const vector_t& r) {
+  inline friend float_t dot(const vector_t& l, const vector_t& r) {
     return l.x*r.x + l.y*r.y + l.z*r.z;
   }
 
@@ -70,13 +72,13 @@ struct vector_t {
 };
 
 
-inline vector_t operator*(const vector_t& l, double r) {
+inline vector_t operator*(const vector_t& l, float_t r) {
   vector_t out(l);
   out.scale(r);
   return out;
 }
 
-inline vector_t operator*(double l, const vector_t& r) {
+inline vector_t operator*(float_t l, const vector_t& r) {
   vector_t out(r);
   out.scale(l);
   return out;
@@ -91,7 +93,7 @@ inline vector_t& operator+=(vector_t& l, const vector_t& r) {
   return l;
 }
 
-inline vector_t operator+(const vector_t& l, double r) {
+inline vector_t operator+(const vector_t& l, float_t r) {
   return vector_t(l.x+r, l.y+r, l.z+r);
 }
 
@@ -103,11 +105,11 @@ inline vector_t operator-(const vector_t& l, const vector_t& r) {
   return vector_t(l.x-r.x, l.y-r.y, l.z-r.z);
 }
 
-inline vector_t operator-(const vector_t& l, double r) {
+inline vector_t operator-(const vector_t& l, float_t r) {
   return vector_t(l.x-r, l.y-r, l.z-r);
 }
 
-inline double operator*(const vector_t& l, const vector_t& r) {
+inline float_t operator*(const vector_t& l, const vector_t& r) {
   return dot(l, r);
 }
 

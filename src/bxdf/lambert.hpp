@@ -1,5 +1,6 @@
 #pragma once
 
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include <algorithm>
@@ -22,7 +23,7 @@ namespace bxdf {
       return k * (1.0 / M_PI);
     }
 
-    double pdf(const vector_t& in, const vector_t& out) const {
+    float_t pdf(const vector_t& in, const vector_t& out) const {
       return in.y * (1.0 / M_PI);
     }
   };

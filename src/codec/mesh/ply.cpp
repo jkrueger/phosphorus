@@ -1,4 +1,5 @@
 #include "ply.hpp"
+#include "precision.hpp"
 
 #include <rply.h>
 
@@ -7,7 +8,7 @@ int add_vertex(p_ply_argument argument) {
   mesh_t* m;
   ply_get_argument_user_data(argument, (void**) &m, &axis);
   ply_get_argument_element(argument, NULL, &index);
-  double v = ply_get_argument_value(argument) * 10.0;
+  float_t v = ply_get_argument_value(argument); // * 10.0;
   if (axis == 2) {
      v = v * -1.0;
   }

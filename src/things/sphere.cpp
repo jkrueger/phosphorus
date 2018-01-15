@@ -1,11 +1,12 @@
 #include "sphere.hpp"
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include "math/orthogonal_base.hpp"
 
 #include <math.h>
 
-sphere_t::sphere_t(const vector_t& c, double r, const material_t::p& m)
+sphere_t::sphere_t(const vector_t& c, float_t r, const material_t::p& m)
   : shadable_t(c, m), radius(r), radius2(r*r)
 {}
 
@@ -54,7 +55,7 @@ void sphere_t::sample(
 
     sampling::strategies::uniform_sample_hemisphere(samples[i], out[i]);
 
-    out[i].pdf *= 1.0 / (radius2 * M_PI);
+    out[i].pdf *= 1.0f / (radius2 * M_PI);
     out[i].sampled = base.to_world(out[i].sampled).scale(radius) + position;
   }
 }

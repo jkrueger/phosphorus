@@ -1,12 +1,13 @@
 #pragma once
 
+#include "precision.hpp"
 #include "thing.hpp"
 
 struct light_t : public thing_t {
   typedef std::shared_ptr<light_t> p;
 
   shadable_t::p thing;
-  double        area;
+  float_t       area;
   color_t       emissive;
 
   light_t(shadable_t::p t, const color_t& e)

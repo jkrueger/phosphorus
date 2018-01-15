@@ -14,13 +14,17 @@
 #include "math/sampling.hpp"
 #include "codec/image/exr.hpp"
 #include "codec/mesh/ply.hpp"
+#include "util/stats.hpp"
+
+#include <sys/time.h>
+#include <unistd.h>
 
 const uint32_t WIDTH=1024;
 const uint32_t HEIGHT=768;
 
-const color_t L(8.0, 8.0, 8.0);
+const color_t L(1024.0, 1024.0, 1024.0);
 
-const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 40.0));
+const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 10.0));
 const material_t::p pink(new diffuse_reflector_t({1, 0.23, 0.85}));
 const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}));
 const material_t::p white(new diffuse_reflector_t({1, 1, 1}));
@@ -28,37 +32,73 @@ const material_t::p mirror(new mirror_t({0.5, 0.5, 0.5}));
 const material_t::p glass(new glass_t({1, 0.23, 0.85}));
 
 int main(int argc, char** argv) {
-  film_t film(WIDTH, HEIGHT, 16);
+  stats_t::p stats(new stats_t());
+  film_t film(WIDTH, HEIGHT, 1);
   lenses::pinhole_t lens;
-  auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({2,3,-3}, 0.25, white)), L));
+  auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({150,-200,300}, 0.25, white)), L));
   printf("Loading mesh\n");
-  auto mesh = codec::mesh::ply::load("bunny.ply", orange);
+  auto mesh = codec::mesh::ply::load("dragon_remeshed.ply", white);
 
   printf("Tesselating mesh: %d, %d\n", mesh->num_vertices, mesh->num_faces);
   std::vector<triangle_t::p> things;
   mesh->tesselate(things);
 
-  auto plane0 = thing_t::p(new plane_t({0, -1.0, 0}, {0, 1.0, 0}, white));
+  auto plane0 = thing_t::p(new plane_t({0, 0.329874, 0}, {0, 1.0, 0}, white));
   auto plane1 = thing_t::p(new plane_t({0, 0, 10.0}, {0, 0, -1.0}, white));
   auto plane2 = thing_t::p(new plane_t({-10.0,  0, 0}, {1.0, 0, 0}, white));
-  auto plane3 = thing_t::p(new plane_t({10.0, 0, 0}, {-1.0, 0, 0}, white));
+  auto plane3 = thing_t::p(new plane_t({0, 0, -100}, {0.0, 0.0, -1.0}, white));
   things_t scene;
   mesh_bvh_t::p bvh(new mesh_bvh_t());
   printf("preprocessing\n");
   bvh->build(things);
-  scene.add(plane0);
+  //scene.add(plane0);
   //scene.add(plane1);
   //scene.add(plane2);
-  //scene.add(plane3);
+  scene.add(plane3);
   scene.add(light0);
   scene.add(bvh);
 
-  auto camera = camera_t<path_tracer_t>::look_at({0,2.0,-8.0}, {0,0,0});
+  //auto camera = camera_t<path_tracer_t>::look_at(stats, {-2.1,2.0,-3.0}, {0,0.5,0});
+  auto camera = camera_t<path_tracer_t>::look_at(stats,
+						 {277,-240,250},
+						 {0,60,-30},
+						 {-std::sin(9.2f),std::cos(9.2f),0.0});
   camera->integrator.emitters.push_back(light0);
-  printf("rendering\n");
+
+  auto done = false;
+  auto t = std::thread([&](){
+      timeval start;
+      gettimeofday(&start, 0);
+      while (!done) {
+	usleep(1000000);
+	timeval now;
+	gettimeofday(&now, 0);
+	auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
+	std::cout
+	  << "\rprogess: " << progress
+	  << ", rays/s: " << stats->rays / (now.tv_sec - start.tv_sec)
+	  << std::flush;
+      }
+    });
+
+  // rendering starts here
+  timeval start, end;
+  gettimeofday(&start, 0);
+
   camera->snapshot(film, lens, scene);
   codec::image::exr::save("out.exr", film);
-  printf("done\n");
+  done = true;
+
+  gettimeofday(&end, 0);
+  
+  if (t.joinable()) {
+    t.join();
+  }
+
+  float time = (end.tv_sec - start.tv_sec) + ((end.tv_usec - start.tv_usec) / 1000000.0);
+
+  std::cout << "rendering time: " << time << std::endl;
+  std::cout << std::endl << "Hesperus is Venus" << std::endl;
 
   return 0;
 }

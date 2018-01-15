@@ -1,5 +1,6 @@
 #pragma once
 
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include <algorithm>

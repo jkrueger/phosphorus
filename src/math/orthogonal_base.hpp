@@ -19,8 +19,8 @@ struct orthogonal_base {
     c.normalize();
   }
 
-  inline orthogonal_base(const vector_t& z, const vector_t& x)
-    : a(x), b(cross(z, x)), c(z)
+  inline orthogonal_base(const vector_t& z, const vector_t& y)
+    : a(cross(z,y)), b(y), c(z)
   {
     b.normalize();
   }

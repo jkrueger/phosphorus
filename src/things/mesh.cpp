@@ -89,7 +89,7 @@ void triangle_t::sample(const vector_t&, const sample_t*, sampled_vector_t*, uin
   throw std::runtime_error("Sampling of triangles not implemented");
 }
 
-void triangle_t::shading_parameters(shading_info_t& info, const vector_t&, double u, double v) const {
+void triangle_t::shading_parameters(shading_info_t& info, const vector_t&, float_t u, float_t v) const {
   auto w = (1 - u - v);
   info.n = u * mesh->normal(a) + v * mesh->normal(b) + w * mesh->normal(c);
   info.n.normalize();

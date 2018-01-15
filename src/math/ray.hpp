@@ -1,10 +1,12 @@
 #pragma once
 
-#include "vector.hpp"
+#include "precision.hpp"
+#include "math/vector.hpp"
 
 struct ray_t {
   vector_t origin;
   vector_t direction;
+  uint64_t padding;
 
   inline ray_t()
   {}
@@ -17,7 +19,7 @@ struct ray_t {
     : origin(o), direction(d)
   {}
 
-  inline vector_t at(double d) const {
+  inline vector_t at(float_t d) const {
     return origin + direction * d;
   }
 };

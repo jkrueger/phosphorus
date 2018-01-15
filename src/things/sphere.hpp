@@ -1,15 +1,16 @@
 #pragma once
 
+#include "precision.hpp"
 #include "thing.hpp"
 
 #include "math/sampling.hpp"
 #include "math/vector.hpp"
 
 struct sphere_t : public shadable_t {
-  double   radius;
-  double   radius2;
+  float_t   radius;
+  float_t   radius2;
 
-  sphere_t(const vector_t& c, double r, const material_t::p& m);
+  sphere_t(const vector_t& c, float_t r, const material_t::p& m);
 
   bool intersect(const ray_t& ray, shading_info_t& info) const;
 

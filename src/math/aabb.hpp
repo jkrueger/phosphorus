@@ -1,5 +1,6 @@
 #pragma once
 
+#include "precision.hpp"
 #include "ray.hpp"
 #include "vector.hpp"
 
@@ -7,14 +8,15 @@
 #include <cmath>
 #include <limits>
 
+#include <xmmintrin.h>
 #include <stdint.h>
 
 struct aabb_t {
   vector_t min, max;
   
   inline aabb_t()
-    : min(std::numeric_limits<double>::max())
-    , max(std::numeric_limits<double>::lowest())
+    : min(std::numeric_limits<float_t>::max())
+    , max(std::numeric_limits<float_t>::lowest())
   {}
 
   inline aabb_t(const aabb_t& cpy)
@@ -29,16 +31,16 @@ struct aabb_t {
     return (min + max) * 0.5;
   }
 
-  inline double area() const {
+  inline float_t area() const {
     auto d = max - min;
     return 2.0 * (d.x * d.y + d.x * d.z + d.y * d.z);
   }
 
   inline uint32_t dominant_axis() const {
     uint32_t out = 0;
-    double   x   = 0.0;
+    float_t   x   = 0.0;
     for (auto i=0; i<3; ++i) {
-      double extent = max.v[i] - min.v[i];
+      float_t extent = max.v[i] - min.v[i];
       if (extent > x) {
 	out = i;
 	x = extent;
@@ -51,13 +53,14 @@ struct aabb_t {
     return min.v[axis] == max.v[axis];
   }
 
-  inline bool intersect(const ray_t& ray, double ood[3], double& t) const {
-    static const double g = std::tgamma(3.0);
+#ifdef DOUBLE_PRECISION
+  inline bool intersect(const ray_t& ray, const float_t* const ood, float_t& t) const {
+    static const float_t g = std::tgamma(3.0);
     
-    double t0 = 0, t1 = std::numeric_limits<double>::max();
+    float_t t0 = 0, t1 = std::numeric_limits<float_t>::max();
     for (auto i = 0; i < 3; ++i) {
-      double near = (min.v[i] - ray.origin.v[i]) * ood[i];
-      double far  = (max.v[i] - ray.origin.v[i]) * ood[i];
+      float_t near = (min.v[i] - ray.origin.v[i]) * ood[i];
+      float_t far  = (max.v[i] - ray.origin.v[i]) * ood[i];
 
       if (near > far) std::swap(near, far);
 
@@ -69,6 +72,66 @@ struct aabb_t {
     }
     return true;
   }
+#else
+  inline bool intersect(const ray_t& ray, const float_t* const oodp, float_t& t) const {
+    static constexpr float _MM_ALIGN16
+      ps_cst_plus_inf[4] = {
+        std::numeric_limits<float>::infinity(),
+	std::numeric_limits<float>::infinity(),
+	std::numeric_limits<float>::infinity(),
+	std::numeric_limits<float>::infinity()
+      },
+      ps_cst_minus_inf[4] = {
+        -std::numeric_limits<float>::infinity(),
+	-std::numeric_limits<float>::infinity(),
+	-std::numeric_limits<float>::infinity(),
+	-std::numeric_limits<float>::infinity()
+      };
+    const __m128
+      plus_inf	= _mm_load_ps(ps_cst_plus_inf),
+      minus_inf	= _mm_load_ps(ps_cst_minus_inf);
+    const __m128
+      box_min	= _mm_loadu_ps((const float * const) min.v),
+      box_max	= _mm_loadu_ps((const float * const) max.v),
+      pos	= _mm_loadu_ps((const float * const) ray.origin.v),
+      ood	= _mm_loadu_ps((const float * const) oodp);
+
+    // use a div if inverted directions aren't available
+    const __m128 l1 = _mm_mul_ps(_mm_sub_ps(box_min, pos), ood);
+    const __m128 l2 = _mm_mul_ps(_mm_sub_ps(box_max, pos), ood);
+
+    // the order we use for those min/max is vital to filter out
+    // NaNs that happens when an inv_dir is +/- inf and
+    // (box_min - pos) is 0. inf * 0 = NaN
+    const __m128 filtered_l1a = _mm_min_ps(l1, plus_inf);
+    const __m128 filtered_l2a = _mm_min_ps(l2, plus_inf);
+    
+    const __m128 filtered_l1b = _mm_max_ps(l1, minus_inf);
+    const __m128 filtered_l2b = _mm_max_ps(l2, minus_inf);
+
+    // now that we're back on our feet, test those slabs.
+    __m128 lmax = _mm_max_ps(filtered_l1a, filtered_l2a);
+    __m128 lmin = _mm_min_ps(filtered_l1b, filtered_l2b);
+
+    // unfold back. try to hide the latency of the shufps & co.
+    const __m128 lmax0 = _mm_shuffle_ps(lmax, lmax, 0x39);
+    const __m128 lmin0 = _mm_shuffle_ps(lmin, lmin, 0x39);
+    lmax = _mm_min_ss(lmax, lmax0);
+    lmin = _mm_max_ss(lmin, lmin0);
+
+    const __m128 lmax1 = _mm_movehl_ps(lmax,lmax);
+    const __m128 lmin1 = _mm_movehl_ps(lmin,lmin);
+    lmax = _mm_min_ss(lmax, lmax1);
+    lmin = _mm_max_ss(lmin, lmin1);
+
+    const bool ret = _mm_comige_ss(lmax, _mm_setzero_ps()) & _mm_comige_ss(lmax,lmin);
+
+    _mm_store_ss((float*)&t, lmin);
+    //_mm_store_ss(lmax, &rs.t_far);
+
+    return  ret;
+  }
+#endif
 };
 
 namespace bounds {

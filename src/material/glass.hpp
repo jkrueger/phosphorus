@@ -1,6 +1,7 @@
 #pragma once
 
 #include "material.hpp"
+#include "precision.hpp"
 #include "bxdf/bsdf.hpp"
 #include "bxdf/reflection.hpp"
 
@@ -9,7 +10,7 @@ struct glass_t : public material_t {
   typedef bxdf::specular_transmission_t<fresnel::dielectric_t> btdf_t;
 
   color_t k;
-  double  etaA, etaB;
+  float_t etaA, etaB;
   bxdf_t::p r, t;
   bsdf_t::p bsdf;
 

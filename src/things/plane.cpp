@@ -1,4 +1,5 @@
 #include "plane.hpp"
+#include "precision.hpp"
 #include "shading.hpp"
 
 #include <limits>
@@ -9,7 +10,7 @@ plane_t::plane_t(const vector_t& o, const vector_t& _n, const material_t::p& m)
 
 bool plane_t::intersect(const ray_t& ray, shading_info_t& info) const {
   auto a = dot(ray.direction, n);
-  if (std::abs(a) > std::numeric_limits<double>::epsilon()) {
+  if (std::abs(a) > std::numeric_limits<float_t>::epsilon()) {
     auto x = position - ray.origin;
     auto d = dot(x, n) / a;
 
