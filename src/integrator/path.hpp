@@ -17,8 +17,9 @@ std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
 struct path_tracer_t {
 
-  static const uint32_t SHADOW_SAMPLES = 1;
-  static const uint8_t  MAX_DEPTH = 1;
+  static const uint32_t SQRT_SHADOW_SAMPLES = 3;
+  static const uint32_t SHADOW_SAMPLES = SQRT_SHADOW_SAMPLES*SQRT_SHADOW_SAMPLES;
+  static const uint8_t  MAX_DEPTH = 8;
 
   std::vector<light_t::p> emitters;
 
@@ -72,6 +73,7 @@ struct path_tracer_t {
     return out;
   }
 
+  pe
   color_t direct(const thing_t& scene, shading_info_t& info, const ray_t& ray) const {
     color_t direct;
     auto bxdf = info.bxdf();
@@ -87,7 +89,7 @@ struct path_tracer_t {
 	if (static_cast<const thing_t*>(emitter.get()) !=
 	    static_cast<const thing_t*>(info.thing)) {
 
-	  sampling::strategies::stratified_2d(uv, 1);
+	  sampling::strategies::stratified_2d(uv, SQRT_SHADOW_SAMPLES);
 	  emitter->sample(info.p, uv, light_samples, SHADOW_SAMPLES); 
 
 	  color_t light;

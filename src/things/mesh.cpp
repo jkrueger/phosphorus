@@ -1,9 +1,9 @@
 #include "mesh.hpp"
 #include "shading.hpp"
 
-std::vector<vector_t> mesh_t::vertices;
-std::vector<vector_t> mesh_t::normals;
-std::vector<uint32_t> mesh_t::faces;
+// std::vector<vector_t> mesh_t::vertices;
+// std::vector<vector_t> mesh_t::normals;
+// std::vector<uint32_t> mesh_t::faces;
 
 void mesh_t::tesselate(std::vector<triangle_t::p>& out) const {
   for (auto i=index_faces; i<index_faces+(num_faces*3); i+=3) {
@@ -18,22 +18,20 @@ void mesh_t::tesselate(std::vector<triangle_t::p>& out) const {
 }
 
 void mesh_t::compute_normals() {
-  std::vector<uint8_t> count(num_vertices, 0);
   normals.resize(normals.size()+num_vertices);
+
   for (auto i=0; i<num_faces*3; i+=3) {
     auto index = index_faces+i;
-    auto a = faces[index], b = faces[index+1], c = faces[index+2];
-    vector_t v0v1 = vertex(b) - vertex(a);
-    vector_t v0v2 = vertex(c) - vertex(a);
+    uint32_t face[3] = {faces[index], faces[index+1], faces[index+2]};
+    vector_t v0v1 = vertex(face[1]) - vertex(face[0]);
+    vector_t v0v2 = vertex(face[2]) - vertex(face[0]);
     vector_t n = normalize(cross(v0v2,v0v1));
     for (auto j=0; j<3; ++j) {
-      count[index+j]++;
-      normals[faces[index+j]] += n;
+      normals[index_vertices+face[j]] += n;
     }
   }
 
   for (auto i=index_vertices; i<index_vertices+num_vertices; ++i) {
-    normals[i].scale(1.0/count[i]);
     normals[i].normalize();
   }
 }
@@ -81,7 +79,7 @@ bool triangle_t::intersect(const ray_t& ray, shading_info_t& info) const {
   if (d < 0.0) {
     return false;
   }
-  
+
   return info.update(ray, d, this, u, v);
 }
 
