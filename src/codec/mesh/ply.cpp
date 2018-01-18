@@ -8,11 +8,11 @@ int add_vertex(p_ply_argument argument) {
   mesh_t* m;
   ply_get_argument_user_data(argument, (void**) &m, &axis);
   ply_get_argument_element(argument, NULL, &index);
-  float_t v = ply_get_argument_value(argument); // * 10.0;
-  if (axis == 2) {
-     v = v * -1.0;
-  }
-  mesh_t::vertices[m->index_vertices+index].v[axis] = v;
+  float_t v = ply_get_argument_value(argument);
+  //if (axis == 2) {
+  //   v = v * -1.0;
+  //}
+  mesh_t::vertices[m->index_vertices+index].v[axis] = v * 10.0;
   return 1;
 }
 
@@ -37,9 +37,9 @@ mesh_t::p codec::mesh::ply::load(const std::string& path, const material_t::p& d
       throw std::runtime_error("Failed to open mesh header: " + path);
     }
 
-    mesh->num_vertices = ply_set_read_cb(ply, "vertex", "x", add_vertex, mesh, 0);
+    mesh->num_vertices = ply_set_read_cb(ply, "vertex", "x", add_vertex, mesh, 2);
     ply_set_read_cb(ply, "vertex", "y", add_vertex, mesh, 1);
-    ply_set_read_cb(ply, "vertex", "z", add_vertex, mesh, 2);
+    ply_set_read_cb(ply, "vertex", "z", add_vertex, mesh, 0);
 
     mesh_t::vertices.resize(mesh_t::vertices.size()+mesh->num_vertices);
 

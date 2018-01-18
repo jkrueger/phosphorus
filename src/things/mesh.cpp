@@ -1,9 +1,9 @@
 #include "mesh.hpp"
 #include "shading.hpp"
 
-// std::vector<vector_t> mesh_t::vertices;
-// std::vector<vector_t> mesh_t::normals;
-// std::vector<uint32_t> mesh_t::faces;
+std::vector<vector_t> mesh_t::vertices;
+std::vector<vector_t> mesh_t::normals;
+std::vector<uint32_t> mesh_t::faces;
 
 void mesh_t::tesselate(std::vector<triangle_t::p>& out) const {
   for (auto i=index_faces; i<index_faces+(num_faces*3); i+=3) {

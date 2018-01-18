@@ -73,7 +73,6 @@ struct path_tracer_t {
     return out;
   }
 
-  pe
   color_t direct(const thing_t& scene, shading_info_t& info, const ray_t& ray) const {
     color_t direct;
     auto bxdf = info.bxdf();

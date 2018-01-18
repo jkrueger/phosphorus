@@ -7,25 +7,59 @@
 static const uint8_t MAX_PRIMS_IN_NODE = 4;
 static const uint8_t NUM_SPLIT_BUCKETS = 12;
 
-struct node_t {
-  aabb_t   bounds;
-  uint32_t offset;
-  uint16_t num;
-  uint8_t  axis;
-  uint8_t  padding; // pad to 32 byte
+struct binary_node_t {
+  aabb_t         bounds;
+  binary_node_t* a, *b;
+  uint32_t       offset;
+  uint16_t       num;
+  uint8_t        axis;
 
-  inline node_t(const aabb_t& b, uint32_t o, uint16_t n)
-    : bounds(b), offset(o), num(n)
+  inline binary_node_t(const aabb_t& b, uint32_t o, uint16_t n)
+    : bounds(b), offset(o), num(n), a(nullptr), b(nullptr)
   {}
 
-  inline node_t(uint8_t axis)
-    : offset(0), axis(axis), num(0)
+  inline binary_node_t(const aabb_t& bounds, uint8_t axis, binary_node_t* a, binary_node_t* b)
+    : bounds(bounds), axis(axis), offset(0), num(0), a(a), b(b) 
   {}
 
   inline bool is_leaf() const {
     return num > 0;
   }
 };
+
+template<int N>
+struct mbvh_node_t {
+  // child node boundaries
+  float    bounds[2*N*3];
+  // offsts into child nodes, or pointers to primitives
+  uint32_t offset[N];
+  uint32_t axis[N-1];
+  uint8_t  num[N];
+
+  inline mbvh_node_t() {
+    memset(bounds, 0, 2*N*3*4);
+    memset(offset, 0, N*sizeof(uint32_t));
+    memset(num, 0, N*sizeof(uint8_t));
+  }
+
+  inline bool is_leaf(uint32_t i) const {
+    return num[i] > 0;
+  }
+
+  inline bool is_empty(uint32_t i) const {
+    return num[i] == 0 && offset[i] == 0;
+  }
+
+  inline void set_offset(uint32_t i, uint32_t o) {
+    offset[i] = o;
+  }
+
+  inline void set_leaf_size(uint32_t i, uint8_t size) {
+    num[i] = size;
+  }
+};
+
+typedef mbvh_node_t<4> quad_node_t;
 
 struct build_info_t {
   uint32_t index;
@@ -56,8 +90,9 @@ struct split_info_t {
 template<typename T>
 struct bvh_t<T>::impl_t {
   std::vector<typename T::p> things;
-  std::vector<node_t> nodes;
+  std::vector<quad_node_t>   nodes;
 
+  aabb_t   bounds;
   uint32_t num_nodes;
   uint32_t max_depth;
   uint32_t lonely;
@@ -67,16 +102,16 @@ struct bvh_t<T>::impl_t {
   {}
 
   template<typename... Args>
-  uint32_t make_node(const Args& ...args) {
-    nodes.emplace_back(args...);
-    return num_nodes++;
+  binary_node_t* make_node(const Args& ...args) {
+    num_nodes++;
+    return new binary_node_t(args...);
   }
 
-  inline const node_t* resolve(uint32_t node) const {
+  inline const quad_node_t* resolve(uint32_t node) const {
     return &nodes[node];
   }
 
-  inline node_t* resolve(uint32_t node) {
+  inline quad_node_t* resolve(uint32_t node) {
     return &nodes[node];
   } 
 
@@ -95,15 +130,17 @@ struct bvh_t<T>::impl_t {
     std::vector<build_info_t>& infos,
     const std::vector<typename T::p>& unsorted) {
 
-    split(start, end, infos, unsorted, 0);
+    auto root = split(start, end, infos, unsorted, 0);
+    collapse(root);
+    bounds = root->bounds;
   }
 
-  uint32_t split(
+  binary_node_t* split(
     uint32_t start, uint32_t end,
     std::vector<build_info_t>& infos,
     const std::vector<typename T::p>& unsorted,
     uint32_t depth) {
-    uint32_t out;
+    binary_node_t* out;
 
     auto n = (end - start);
     if (n == 1) {
@@ -128,7 +165,7 @@ struct bvh_t<T>::impl_t {
 
 	uint8_t best_axis   = 0;
 	uint8_t best_bucket = 0;
-	float_t  best_cost   = std::numeric_limits<float_t>::max();
+	float_t best_cost   = std::numeric_limits<float_t>::max();
 	
 	//auto axis = centroid_bounds.dominant_axis();
 	for (auto axis=0; axis<3; ++axis) {
@@ -148,7 +185,7 @@ struct bvh_t<T>::impl_t {
 		infos[i].bounds);
 	  }
 
-	  float_t  split_cost   = std::numeric_limits<float_t>::max();
+	  float_t split_cost   = std::numeric_limits<float_t>::max();
 	  uint8_t split_bucket = 0;
 
 	  for (auto i=0; i<NUM_SPLIT_BUCKETS-1; ++i) {
@@ -199,16 +236,11 @@ struct bvh_t<T>::impl_t {
 		});
 
 	    mid = p - &infos[0];
-	    out = make_node(best_axis);
 
 	    auto near = split(start, mid, infos, unsorted, depth+1);
 	    auto far  = split(mid, end, infos, unsorted, depth+1);
-	  
-	    node_t* a      = resolve(near);
-	    node_t* b      = resolve(far);
-	    node_t* parent = resolve(out);
-	    parent->offset = far;
-	    parent->bounds = bounds::merge(a->bounds, b->bounds);
+
+	    out = make_node(bounds::merge(near->bounds, far->bounds), best_axis, near, far);
 	  }
 	  else {
 	    insert_things(start, end, infos, unsorted);
@@ -219,6 +251,44 @@ struct bvh_t<T>::impl_t {
     }
     max_depth = std::max(max_depth, depth);
     return out;
+  }
+
+  uint32_t collapse(binary_node_t* root) {
+    auto offset = nodes.size();
+    nodes.emplace_back();
+
+    auto left  = root->a;
+    auto right = root->b;
+
+    binary_node_t* candidates[] = {
+      left->a  ? left->a  : left,
+      left->a  ? left->b  : nullptr,
+      right->a ? right->a : right,
+      right->a ? right->b : nullptr
+    };
+
+    for (int i=0; i<4; ++i) {
+      if (candidates[i]) {
+	quad_node_t* node = &nodes[offset];
+	
+	node->bounds[i     ] = candidates[i]->bounds.min.x;
+	node->bounds[4  + i] = candidates[i]->bounds.min.y;
+	node->bounds[8  + i] = candidates[i]->bounds.min.z;
+	node->bounds[12 + i] = candidates[i]->bounds.max.x;
+	node->bounds[16 + i] = candidates[i]->bounds.max.y;
+	node->bounds[20 + i] = candidates[i]->bounds.max.z;
+
+	if (candidates[i]->is_leaf()) {
+	  node->set_offset(i, candidates[i]->offset);
+	  node->set_leaf_size(i, candidates[i]->num);
+	}
+	else {
+	  uint32_t child = collapse(candidates[i]);
+	  nodes[offset].set_offset(i, child);
+	}
+      }
+    }
+    return offset;
   }
 };
 
@@ -236,8 +306,8 @@ void bvh_t<T>::build(const std::vector<typename T::p>& things) {
   impl->build(0, (uint32_t) infos.size(), infos, things);
 
   std::clog
-    << "Finished building BVH. Extent: "
-    << impl->nodes[0].bounds
+    << "Finished building BVH."
+    << impl->bounds
     << std::endl
     << "With number of nodes: " << impl->num_nodes
     << ", depth=" << impl->max_depth
@@ -249,50 +319,50 @@ template<typename T>
 bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
   static thread_local uint32_t stack[128];
 
-  const float_t ood[] =
-    { 1.0f/ray.direction.x,
-      1.0f/ray.direction.y,
-      1.0f/ray.direction.z,
-      0.0f };
+  const vector_t ood(
+    1.0f/ray.direction.x,
+    1.0f/ray.direction.y,
+    1.0f/ray.direction.z);
+
+  uint32_t indices[] = {
+    0, 4, 8, 12, 16, 20
+  };
+
+  if (ray.direction.x < 0.0) { std::swap(indices[0], indices[3]); }
+  if (ray.direction.y < 0.0) { std::swap(indices[1], indices[4]); }
+  if (ray.direction.z < 0.0) { std::swap(indices[2], indices[5]); }
+
+  const vector4_t dir(ood);
+  const vector4_t org(ray.origin);
 
   bool hit_anything = false;
   if (impl->num_nodes > 0) {
-    // setup traverse stack
     auto top = 1;
     stack[0] = 0;
     while (top > 0) {
       auto cur  = stack[--top];
       auto node = impl->resolve(cur);
-      if (node->is_leaf()) {
-	for (int i=node->offset; i<(node->offset+node->num); ++i) {
-	  if (impl->things[i]->intersect(ray, info)) {
-	    hit_anything = true;
+
+      float4_t dist;
+      auto mask = bounds::intersect_all<4>(org, dir, node->bounds, indices, dist);
+
+      float dists[4];
+      float4::store(dist, dists);
+
+      // TODO: sort nodes by distances
+
+      for (int i=0;i<4; ++i) {
+	if ((mask & (1 << i)) && dists[i] <= info.d) {
+	  if (node->is_leaf(i)) {
+	    for (int j=node->offset[i]; j<(node->offset[i]+node->num[i]); ++j) {
+	      if (impl->things[j]->intersect(ray, info)) {
+		hit_anything = true;
+	      }
+	    }
 	  }
-	}
-      }
-      else {
-	float_t d0, d1;
-	bool hita = impl->resolve(cur+1)->bounds.intersect(ray, ood, d0);
-	bool hitb = impl->resolve(node->offset)->bounds.intersect(ray, ood, d1);
-	
-	hita = hita && d0 <= info.d;
-	hitb = hitb && d1 <= info.d;
-	
-	if (hita && hitb) {
-	  if (d0 <= d1) {
-	    stack[top++] = node->offset;
-	    stack[top++] = cur + 1;
+	  else if (!node->is_empty(i)) {
+	    stack[top++] = node->offset[i];
 	  }
-	  else {
-	    stack[top++] = cur + 1;
-	    stack[top++] = node->offset;
-	  }
-	}
-	else if (hita) {
-	  stack[top++] = cur + 1;
-	}
-	else if (hitb) {
-	  stack[top++] = node->offset;
 	}
       }
     }

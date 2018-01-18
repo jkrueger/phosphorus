@@ -4,11 +4,13 @@
 #include "ray.hpp"
 #include "vector.hpp"
 
+#include "simd/float4.hpp"
+#include "simd/vector4.hpp"
+
 #include <iostream>
 #include <cmath>
 #include <limits>
 
-#include <xmmintrin.h>
 #include <stdint.h>
 
 struct aabb_t {
@@ -156,7 +158,58 @@ namespace bounds {
     if (l.max.z > l.min.z) { o.z /= (l.max.z - l.min.z); }
     return o;
   }
+
+  template<int N>
+  inline uint8_t intersect_all(
+    const vector4_t& o, const vector4_t& ood,
+    const float* const bounds, const uint32_t* indices,
+    float4_t& dist);
+
+  template<>
+  inline uint8_t intersect_all<4>(
+    const vector4_t& o, const vector4_t& ood,
+    const float* const bounds, const uint32_t* indices,
+    float4_t& dist) {
+
+    using namespace float4;
+
+    // eventually tnear/tfar values
+    const float4_t plus_inf  = load(float4::plus_inf);
+    const float4_t minus_inf = load(float4::minus_inf);
+
+    const float4_t min_x = mul(sub(load(&bounds[indices[0]]), o.x), ood.x);
+    const float4_t min_y = mul(sub(load(&bounds[indices[1]]), o.y), ood.y);
+    const float4_t min_z = mul(sub(load(&bounds[indices[2]]), o.z), ood.z);
+
+    const float4_t max_x = mul(sub(load(&bounds[indices[3]]), o.x), ood.x);
+    const float4_t max_y = mul(sub(load(&bounds[indices[4]]), o.y), ood.y);
+    const float4_t max_z = mul(sub(load(&bounds[indices[5]]), o.z), ood.z);
+
+    const float4_t n = max(max(min_x, min_y), max(min_z, minus_inf));
+    const float4_t f = min(min(max_x, max_y), min(max_z, plus_inf));
+
+    const auto mask = lte(n, f);
+
+    float distsa[4], distsb[4];
+    store(n, distsa);
+    store(f, distsb);
+
+    dist = n;
+
+    return movemask(mask);
+  }
 }
+
+/*
+#if defined(__AVX2__)
+  tmeplate<>
+  inline void intersect_all<8>(const ray_t& ray, const float* const boxes, const float* const ood) {
+  }
+#else
+  #error "No streamed implementation for AABB check available"
+#endif
+}
+*/
 
 inline std::ostream& operator<<(std::ostream& o, const aabb_t& a) {
   return o << "aabb_t{" << "min=" << a.min << ", max=" << a.max << "}";
