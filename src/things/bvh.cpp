@@ -1,6 +1,7 @@
 #include "bvh.hpp"
 #include "precision.hpp"
 #include "shading.hpp"
+#include "util/compiler.hpp"
 
 #include <algorithm>
 
@@ -309,15 +310,38 @@ void bvh_t<T>::build(const std::vector<typename T::p>& things) {
     << "Finished building BVH."
     << impl->bounds
     << std::endl
-    << "With number of nodes: " << impl->num_nodes
+    << "With number of nodes: " << impl->nodes.size()
     << ", depth=" << impl->max_depth
     << ", lonely=" << impl->lonely
     << std::endl;
 }
 
+inline size_t __bsf(size_t v) {
+  return _tzcnt_u64(v);
+}
+
+inline size_t __bscf(size_t& v) {
+  size_t i = __bsf(v);
+  v &= v-1;
+  return i;
+}
+
+struct node_ref_t {
+  uint32_t offset;
+  uint32_t flags;
+  float    d;
+};
+
+inline void push(node_ref_t* stack, int32_t& top, const float* const dists, const quad_node_t* node, uint32_t idx) {
+  stack[top].offset = node->offset[idx];
+  stack[top].flags  = node->num[idx];
+  stack[top].d      = dists[idx];
+  ++top;
+}
+
 template<typename T>
 bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
-  static thread_local uint32_t stack[128];
+  static thread_local node_ref_t stack[128];
 
   const vector_t ood(
     1.0f/ray.direction.x,
@@ -337,31 +361,89 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
 
   bool hit_anything = false;
   if (impl->num_nodes > 0) {
+
     auto top = 1;
-    stack[0] = 0;
+    stack[0].offset = 0;
+    stack[0].flags  = 0;
+    stack[0].d = std::numeric_limits<float>::max();
+
     while (top > 0) {
-      auto cur  = stack[--top];
-      auto node = impl->resolve(cur);
+      auto cur = stack[--top];
+      if (cur.d > info.d) {
+	continue;
+      }
 
-      float4_t dist;
-      auto mask = bounds::intersect_all<4>(org, dir, node->bounds, indices, dist);
+      while (cur.flags == 0) {
+	auto node = impl->resolve(cur.offset);
+	
+	float4_t dist;
+	auto mask = bounds::intersect_all<4>(org, dir, node->bounds, indices, dist);
+	if (mask == 0) {
+	  break;
+	}
+	
+	float dists[4];
+	float4::store(dist, dists);
+	
+	auto a = __bscf(mask);
+	if (likely(mask == 0)) {
+	  cur.offset = node->offset[a];
+	  cur.flags  = node->num[a];
+	  cur.d      = dists[a];
+	  continue;
+	}
+	
+	auto b = __bscf(mask);
+	if (likely(mask == 0)) {
+	  if (dists[a] < dists[b]) {
+	    cur.offset = node->offset[a];
+	    cur.flags  = node->num[a];
+	    cur.d      = dists[a];
 
-      float dists[4];
-      float4::store(dist, dists);
-
-      // TODO: sort nodes by distances
-
-      for (int i=0;i<4; ++i) {
-	if ((mask & (1 << i)) && dists[i] <= info.d) {
-	  if (node->is_leaf(i)) {
-	    for (int j=node->offset[i]; j<(node->offset[i]+node->num[i]); ++j) {
-	      if (impl->things[j]->intersect(ray, info)) {
-		hit_anything = true;
-	      }
-	    }
+	    push(stack, top, dists, node, b);
 	  }
-	  else if (!node->is_empty(i)) {
-	    stack[top++] = node->offset[i];
+	  else {
+	    cur.offset = node->offset[b];
+	    cur.flags  = node->num[b];
+	    cur.d      = dists[b];
+
+	    push(stack, top, dists, node, a);
+	  }
+	  continue;
+	}
+
+	auto c = __bscf(mask);
+	if (likely(mask == 0)) {
+	  if (dists[b] < dists[a]) std::swap(b, a);
+	  if (dists[c] < dists[b]) std::swap(c, b);
+	  if (dists[b] < dists[a]) std::swap(b, a);
+
+	  push(stack, top, dists, node, c);
+	  push(stack, top, dists, node, b);
+	}
+	else {
+	  auto d = __bscf(mask);
+
+	  if (dists[b] < dists[a]) std::swap(b, a);
+	  if (dists[d] < dists[c]) std::swap(d, c);
+	  if (dists[c] < dists[a]) std::swap(c, a);
+	  if (dists[d] < dists[b]) std::swap(d, b);
+	  if (dists[c] < dists[b]) std::swap(c, b);
+
+	  push(stack, top, dists, node, d);
+	  push(stack, top, dists, node, c);
+	  push(stack, top, dists, node, b);
+	}
+	
+	cur.offset = node->offset[a];
+	cur.flags  = node->num[a];
+	cur.d      = dists[a];
+      }
+
+      if (cur.flags > 0) {
+	for (int j=cur.offset; j<(cur.offset+cur.flags); ++j) {
+	  if (impl->things[j]->intersect(ray, info)) {
+	    hit_anything = true;
 	  }
 	}
       }

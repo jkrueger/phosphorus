@@ -160,13 +160,13 @@ namespace bounds {
   }
 
   template<int N>
-  inline uint8_t intersect_all(
+  inline size_t intersect_all(
     const vector4_t& o, const vector4_t& ood,
     const float* const bounds, const uint32_t* indices,
     float4_t& dist);
 
   template<>
-  inline uint8_t intersect_all<4>(
+  inline size_t intersect_all<4>(
     const vector4_t& o, const vector4_t& ood,
     const float* const bounds, const uint32_t* indices,
     float4_t& dist) {

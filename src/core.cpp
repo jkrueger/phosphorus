@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   scene.add(light0);
   scene.add(bvh);
 
-  auto camera = camera_t<path_tracer_t>::look_at(stats, {0, 0,-5}, {0,1,0});
+  auto camera = camera_t<path_tracer_t>::look_at(stats, {3, 1,-3}, {0,1,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
   camera->integrator.emitters.push_back(light0);
