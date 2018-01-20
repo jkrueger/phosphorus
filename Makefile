@@ -1,7 +1,7 @@
 include build/core.mk
 
-CC  := clang 
-CXX := clang++ 
+CC  := clang
+CXX := clang++
 
 $(eval $(call SUBDIR, vendor/rply))
 $(eval $(call SUBDIR, .))

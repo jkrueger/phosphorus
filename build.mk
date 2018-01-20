@@ -21,8 +21,8 @@ rayray_target_dir_$(d)  := bin
 ifdef DEBUG
 rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src
 else
-rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -O3
+rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -I/usr/local/include -O3 -march=native -flto -funroll-loops
 endif
-rayray_ld_flags_$(d)    := -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply
+rayray_ld_flags_$(d)    := -L/usr/local/lib -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply -flto
 
 include $(TOP)/build/footer.mk

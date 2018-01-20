@@ -96,7 +96,7 @@ struct shading_info_t {
     return false;
   }
 
-  inline bxdf_t::p bxdf() {
+  inline bxdf_t::p& bxdf() {
     if (!_bxdf) {
       _bxdf = thing->material->at(*this);
     }

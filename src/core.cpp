@@ -20,10 +20,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-const uint32_t WIDTH=1024;
-const uint32_t HEIGHT=768;
+const uint32_t WIDTH=1280;
+const uint32_t HEIGHT=720;
 
-const color_t L(64.0, 64.0, 64.0);
+const color_t L(16.0, 16.0, 16.0);
 
 const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 10.0));
 const material_t::p red(new diffuse_reflector_t({1, 0.0, 0.0}));
@@ -36,7 +36,7 @@ const material_t::p glass(new glass_t({1, 0.23, 0.85}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
-  film_t film(WIDTH, HEIGHT, 1);
+  film_t film(WIDTH, HEIGHT, 64);
   lenses::pinhole_t lens;
   //auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({800,500,-700}, 10.0, white)), L));
   auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({0,2,-2}, 0.1, white)), L));
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   meshes[0]->tesselate(things);
   auto plane0 = thing_t::p(new plane_t({0, -605.893, 0}, {0, -1.0, 0}, orange));
   auto plane1 = thing_t::p(new plane_t({0, 0, 605.893}, {0, 0, -1.0}, jade));
-  auto plane2 = thing_t::p(new plane_t({-10.0,  0, 0}, {1.0, 0, 0}, white));
+  auto plane2 = thing_t::p(new plane_t({0,  0.32, 0}, {0, 1, 0}, white));
   auto plane3 = thing_t::p(new plane_t({-66, 0, 0}, {1.0, 0.0, 0.0}, white));
   things_t scene;
   mesh_bvh_t::p bvh(new mesh_bvh_t());
@@ -57,10 +57,10 @@ int main(int argc, char** argv) {
   bvh->build(things);
   //scene.add(plane0);
   //scene.add(plane1);
-  //scene.add(plane2);
+  scene.add(bvh);
+  scene.add(plane2);
   //scene.add(plane3);
   scene.add(light0);
-  scene.add(bvh);
 
   auto camera = camera_t<path_tracer_t>::look_at(stats, {3, 1,-3}, {0,1,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});

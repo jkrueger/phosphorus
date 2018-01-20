@@ -5,8 +5,20 @@
 
 #include <algorithm>
 
+#include <string.h>
+
 static const uint8_t MAX_PRIMS_IN_NODE = 4;
 static const uint8_t NUM_SPLIT_BUCKETS = 12;
+
+inline size_t __bsf(size_t v) {
+  return _tzcnt_u64(v);
+}
+
+inline size_t __bscf(size_t& v) {
+  size_t i = __bsf(v);
+  v &= v-1;
+  return i;
+}
 
 struct binary_node_t {
   aabb_t         bounds;
@@ -88,10 +100,172 @@ struct split_info_t {
   {}
 };
 
+struct traversal_ray_t {
+  const vector4_t origin;
+  const vector4_t direction;
+  const vector4_t ood;
+  float4_t d;
+  const ray_t&    ray;
+
+  inline traversal_ray_t(const ray_t& ray)
+    : ray(ray)
+    , origin(ray.origin)
+    , direction(ray.direction)
+    , ood(vector_t(
+        1.0f/ray.direction.x,
+        1.0f/ray.direction.y,
+        1.0f/ray.direction.z))
+    , d(float4::load(std::numeric_limits<float>::max()))
+  {}
+} __attribute__((aligned (16)));
+
+struct moeller_trumbore_t {
+  vector4_t e0;
+  vector4_t e1;
+  vector4_t v0;
+
+  triangle_t::p triangles[MAX_PRIMS_IN_NODE];
+
+  inline moeller_trumbore_t(const triangle_t::p* tris, uint32_t num) {
+    vector_t
+      ve0[MAX_PRIMS_IN_NODE],
+      ve1[MAX_PRIMS_IN_NODE],
+      vv0[MAX_PRIMS_IN_NODE];
+
+    for (int i=0; i<num; ++i) {
+      triangles[i] = tris[i];
+
+      ve0[i] = triangles[i]->v1() - triangles[i]->v0();
+      ve1[i] = triangles[i]->v2() - triangles[i]->v0();
+      vv0[i] = triangles[i]->v0();
+    }
+
+    e0 = vector4_t(ve0);
+    e1 = vector4_t(ve1);
+    v0 = vector4_t(vv0);
+  };
+
+  inline bool intersect(traversal_ray_t& ray, shading_info_t& info) const {
+    using namespace float4;
+    using namespace vector4;
+
+    const auto one = load(1.0f), zero = load(0.0f),
+      peps = load(0.00000001f),
+      meps = load(-0.00000001);
+
+    const auto p   = cross(ray.direction, e1);
+    const auto det = dot(e0, p);
+    const auto ood = div(one, det);
+    const auto t   = sub(ray.origin, v0);
+    const auto q   = cross(t, e0);
+
+    const auto u   = mul(dot(t, p), ood);
+    const auto v   = mul(dot(ray.direction, q), ood);
+
+    auto d = mul(dot(e1, q), ood);
+
+    const auto xmask = mor(gt(det, peps), lt(det, meps));
+    const auto umask = gte(u, zero);
+    const auto vmask = mand(gte(v, zero), lte(add(u, v), one));
+    const auto dmask = mand(gte(d, zero), lt(d, ray.d));
+
+    auto mask = movemask(mand(mand(mand(vmask, umask), dmask), xmask));
+    auto maskcpy = mask;
+
+    bool ret = false;
+    if (mask != 0) {
+
+      float dists[4];
+      float closest = std::numeric_limits<float>::max();
+
+      store(d, dists);
+
+      int idx = -1;
+      while(mask != 0) {
+	auto x = __bscf(mask);
+	if (dists[x] < closest && triangles[3-x]) {
+	  closest = dists[x];
+	  idx = x;
+	}
+      }
+
+      if (idx != -1) {
+	float us[4];
+	float vs[4];
+	store(u, us); store(v, vs);
+	ret = info.update(ray.ray, closest, triangles[3-idx].get(), us[idx], vs[idx]);
+
+	d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 1, 0, 3)));
+        d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 0, 3, 2)));
+
+	ray.d = d;
+      }
+    }
+
+    return ret;
+  }
+} __attribute__((aligned (16)));
+
+template<typename T>
+struct accelerator_t {
+  typedef std::vector<typename T::p> storage_t;
+
+  static inline bool intersect(
+    traversal_ray_t& ray,
+    const typename T::p& thing,
+    shading_info_t& info) {
+
+    return thing->intersect(ray.ray, info);
+  }
+
+  static inline uint32_t insert_things(
+    uint32_t start, uint32_t end,
+    std::vector<build_info_t>& infos,
+    const std::vector<typename T::p>& unsorted,
+    storage_t& things) {
+
+    for (auto i=start; i<end; ++i) {
+      things.emplace_back(unsorted[infos[i].index]);
+    }
+
+    return start;
+  }
+};
+
+template<>
+struct accelerator_t<triangle_t> {
+  typedef std::vector<moeller_trumbore_t> storage_t;
+
+  static inline bool intersect(
+    traversal_ray_t& ray,
+    const moeller_trumbore_t& tris,
+    shading_info_t& info) {
+
+    return tris.intersect(ray, info);
+  }
+
+  static inline uint32_t insert_things(
+    uint32_t start, uint32_t end,
+    std::vector<build_info_t>& infos,
+    const std::vector<typename triangle_t::p>& unsorted,
+    storage_t& things) {
+
+    triangle_t::p tris[4];
+    int i=0;
+    for (auto j=0; j<(end-start); ++j, ++i) {
+      tris[i] = unsorted[infos[start+j].index];
+    }
+
+    things.emplace_back(tris, (end-start));
+
+    return things.size()-1;
+  }
+};
+
 template<typename T>
 struct bvh_t<T>::impl_t {
-  std::vector<typename T::p> things;
-  std::vector<quad_node_t>   nodes;
+  typename accelerator_t<T>::storage_t things;
+  std::vector<quad_node_t> nodes;
 
   aabb_t   bounds;
   uint32_t num_nodes;
@@ -116,16 +290,6 @@ struct bvh_t<T>::impl_t {
     return &nodes[node];
   } 
 
-  void insert_things(
-    uint32_t start, uint32_t end,
-    std::vector<build_info_t>& infos,
-    const std::vector<typename T::p>& unsorted) {
-
-    for (auto i=start; i<end; ++i) {
-      things.push_back(unsorted[infos[i].index]);
-    }
-  }
-
   void build(
     uint32_t start, uint32_t end,
     std::vector<build_info_t>& infos,
@@ -146,8 +310,8 @@ struct bvh_t<T>::impl_t {
     auto n = (end - start);
     if (n == 1) {
       lonely++;
-      insert_things(start, end, infos, unsorted);
-      out = make_node(infos[start].bounds, start, 1);
+      auto offset = accelerator_t<T>::insert_things(start, end, infos, unsorted, things);
+      out = make_node(infos[start].bounds, offset, 1);
     }
     else {
       aabb_t node_bounds, centroid_bounds;
@@ -157,9 +321,9 @@ struct bvh_t<T>::impl_t {
 	bounds::merge(centroid_bounds, infos[i].centroid);
       }
 
-      if (n <= 2) {
-	insert_things(start, end, infos, unsorted);
-	out = make_node(node_bounds, start, (uint16_t) n);
+      if (n <= MAX_PRIMS_IN_NODE) {
+	auto offset = accelerator_t<T>::insert_things(start, end, infos, unsorted, things);
+	out = make_node(node_bounds, offset, (uint16_t) n);
       }
       else {
 	auto mid = (start + end) / 2;
@@ -218,8 +382,8 @@ struct bvh_t<T>::impl_t {
 	}
 
 	if (centroid_bounds.empty_on(best_axis)) {
-	  insert_things(start, end, infos, unsorted);
-	  out = make_node(node_bounds, start, (uint16_t) n);
+	  auto offset = accelerator_t<T>::insert_things(start, end, infos, unsorted, things);
+	  out = make_node(node_bounds, offset, (uint16_t) n);
 	}
 	else {
 	  float_t leaf_cost = n;
@@ -244,8 +408,8 @@ struct bvh_t<T>::impl_t {
 	    out = make_node(bounds::merge(near->bounds, far->bounds), best_axis, near, far);
 	  }
 	  else {
-	    insert_things(start, end, infos, unsorted);
-	    out = make_node(node_bounds, start, (uint16_t) n);
+	    auto offset = accelerator_t<T>::insert_things(start, end, infos, unsorted, things);
+	    out = make_node(node_bounds, offset, (uint16_t) n);
 	  }
 	}
       }
@@ -316,19 +480,9 @@ void bvh_t<T>::build(const std::vector<typename T::p>& things) {
     << std::endl;
 }
 
-inline size_t __bsf(size_t v) {
-  return _tzcnt_u64(v);
-}
-
-inline size_t __bscf(size_t& v) {
-  size_t i = __bsf(v);
-  v &= v-1;
-  return i;
-}
-
 struct node_ref_t {
-  uint32_t offset;
-  uint32_t flags;
+  uint32_t offset : 28;
+  uint32_t flags  : 4;
   float    d;
 };
 
@@ -343,11 +497,6 @@ template<typename T>
 bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
   static thread_local node_ref_t stack[128];
 
-  const vector_t ood(
-    1.0f/ray.direction.x,
-    1.0f/ray.direction.y,
-    1.0f/ray.direction.z);
-
   uint32_t indices[] = {
     0, 4, 8, 12, 16, 20
   };
@@ -356,8 +505,7 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
   if (ray.direction.y < 0.0) { std::swap(indices[1], indices[4]); }
   if (ray.direction.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-  const vector4_t dir(ood);
-  const vector4_t org(ray.origin);
+  traversal_ray_t tray(ray);
 
   bool hit_anything = false;
   if (impl->num_nodes > 0) {
@@ -377,7 +525,7 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
 	auto node = impl->resolve(cur.offset);
 	
 	float4_t dist;
-	auto mask = bounds::intersect_all<4>(org, dir, node->bounds, indices, dist);
+	auto mask = bounds::intersect_all<4>(tray.origin, tray.ood, tray.d, node->bounds, indices, dist);
 	if (mask == 0) {
 	  break;
 	}
@@ -434,17 +582,15 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
 	  push(stack, top, dists, node, c);
 	  push(stack, top, dists, node, b);
 	}
-	
+
 	cur.offset = node->offset[a];
 	cur.flags  = node->num[a];
 	cur.d      = dists[a];
       }
 
       if (cur.flags > 0) {
-	for (int j=cur.offset; j<(cur.offset+cur.flags); ++j) {
-	  if (impl->things[j]->intersect(ray, info)) {
-	    hit_anything = true;
-	  }
+	if (accelerator_t<T>::intersect(tray, impl->things[cur.offset], info)) {
+	  hit_anything = true;
 	}
       }
     }

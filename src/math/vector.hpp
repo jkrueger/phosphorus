@@ -71,7 +71,6 @@ struct vector_t {
   }
 };
 
-
 inline vector_t operator*(const vector_t& l, float_t r) {
   vector_t out(l);
   out.scale(r);

@@ -100,3 +100,16 @@ aabb_t triangle_t::bounds() const {
   bounds::merge(out, mesh->vertex(c));
   return out;
 }
+
+vector_t triangle_t::v0() const {
+  return mesh->vertex(a);
+}
+
+
+vector_t triangle_t::v1() const {
+  return mesh->vertex(b);
+}
+
+vector_t triangle_t::v2() const {
+  return mesh->vertex(c);
+}

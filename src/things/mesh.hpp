@@ -21,6 +21,10 @@ struct triangle_t : public shadable_t {
   void shading_parameters(shading_info_t&, const vector_t&, float_t u, float_t v) const;
 
   aabb_t bounds() const;
+
+  vector_t v0() const;
+  vector_t v1() const;
+  vector_t v2() const;
 };
 
 struct mesh_t : public shadable_t {

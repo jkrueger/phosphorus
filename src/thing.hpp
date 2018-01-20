@@ -57,7 +57,7 @@ struct things_t : public thing_t {
 
   bool intersect(const ray_t& ray, shading_info_t& info) const {
     bool hit_anything = false;
-    for (auto thing : things) {
+    for (const auto& thing : things) {
       bool hit_thing = thing->intersect(ray, info);
       hit_anything |= hit_thing;
     }

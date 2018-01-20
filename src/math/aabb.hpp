@@ -76,13 +76,14 @@ struct aabb_t {
   }
 #else
   inline bool intersect(const ray_t& ray, const float_t* const oodp, float_t& t) const {
-    static constexpr float _MM_ALIGN16
+    static constexpr float //_MM_ALIGN16
       ps_cst_plus_inf[4] = {
         std::numeric_limits<float>::infinity(),
 	std::numeric_limits<float>::infinity(),
 	std::numeric_limits<float>::infinity(),
 	std::numeric_limits<float>::infinity()
-      },
+    };
+    static constexpr float //_MM_ALIGN16
       ps_cst_minus_inf[4] = {
         -std::numeric_limits<float>::infinity(),
 	-std::numeric_limits<float>::infinity(),
@@ -161,13 +162,13 @@ namespace bounds {
 
   template<int N>
   inline size_t intersect_all(
-    const vector4_t& o, const vector4_t& ood,
+    const vector4_t& o, const vector4_t& ood, const float4_t& d,
     const float* const bounds, const uint32_t* indices,
     float4_t& dist);
 
   template<>
   inline size_t intersect_all<4>(
-    const vector4_t& o, const vector4_t& ood,
+    const vector4_t& o, const vector4_t& ood, const float4_t& d,
     const float* const bounds, const uint32_t* indices,
     float4_t& dist) {
 
@@ -176,6 +177,7 @@ namespace bounds {
     // eventually tnear/tfar values
     const float4_t plus_inf  = load(float4::plus_inf);
     const float4_t minus_inf = load(float4::minus_inf);
+    const float4_t zero = load(0.0f);
 
     const float4_t min_x = mul(sub(load(&bounds[indices[0]]), o.x), ood.x);
     const float4_t min_y = mul(sub(load(&bounds[indices[1]]), o.y), ood.y);
@@ -185,14 +187,10 @@ namespace bounds {
     const float4_t max_y = mul(sub(load(&bounds[indices[4]]), o.y), ood.y);
     const float4_t max_z = mul(sub(load(&bounds[indices[5]]), o.z), ood.z);
 
-    const float4_t n = max(max(min_x, min_y), max(min_z, minus_inf));
-    const float4_t f = min(min(max_x, max_y), min(max_z, plus_inf));
+    const float4_t n = max(max(min_x, min_y), max(min_z, zero));
+    const float4_t f = min(min(max_x, max_y), min(max_z, d));
 
     const auto mask = lte(n, f);
-
-    float distsa[4], distsb[4];
-    store(n, distsa);
-    store(f, distsb);
 
     dist = n;
 

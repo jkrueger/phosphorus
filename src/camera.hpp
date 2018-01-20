@@ -118,6 +118,8 @@ struct camera_t {
 
   Integrator integrator;
 
+  sample_t* samples;
+
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
@@ -139,8 +141,8 @@ struct camera_t {
 
     auto samples_per_dimension = (uint32_t) std::sqrt(film.samples);
 
-    sample_t pixels[film.samples];
-    sampling::strategies::stratified_2d(pixels, (uint32_t) std::sqrt(film.samples));
+    samples = new sample_t[film.samples];
+    sampling::strategies::stratified_2d(samples, (uint32_t) std::sqrt(film.samples));
 
     float_t ratio = (float_t) film.width / (float_t) film.height;
     float_t stepx = 1.0/film.width;
@@ -164,8 +166,8 @@ struct camera_t {
 		auto ndcy = 0.5f - y * stepy;
 
 		for (int i=0; i<film.samples; ++i) {
-		  auto sx  = pixels[i].u - 0.5f;
-		  auto sy  = pixels[i].v - 0.5f;
+		  auto sx  = samples[i].u - 0.5f;
+		  auto sy  = samples[i].v - 0.5f;
 
 		  ray_t ray(position, b.to_world({sx * stepx + ndcx, sy * stepy + ndcy, 1.0f}));
 		  ray.direction.normalize();

@@ -11,13 +11,13 @@
 
 #include "bxdf/lambert.hpp"
 
-std::random_device rd;
-std::mt19937 gen(rd());
-std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
+thread_local std::random_device rd;
+thread_local std::mt19937 gen(rd());
+thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
 struct path_tracer_t {
 
-  static const uint32_t SQRT_SHADOW_SAMPLES = 3;
+  static const uint32_t SQRT_SHADOW_SAMPLES = 2;
   static const uint32_t SHADOW_SAMPLES = SQRT_SHADOW_SAMPLES*SQRT_SHADOW_SAMPLES;
   static const uint8_t  MAX_DEPTH = 8;
 
@@ -75,7 +75,7 @@ struct path_tracer_t {
 
   color_t direct(const thing_t& scene, shading_info_t& info, const ray_t& ray) const {
     color_t direct;
-    auto bxdf = info.bxdf();
+    auto& bxdf = info.bxdf();
 
     if (emitters.size() > 0 && bxdf->has_distribution()) {
       auto out  = ray.origin - info.p;
