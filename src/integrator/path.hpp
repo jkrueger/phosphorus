@@ -94,20 +94,16 @@ struct path_tracer_t {
 	  color_t light;
 	  for (auto& sample : light_samples) {
             auto in  = sample.sampled - info.p;
+	    auto d   = in.length() - 0.0002;
 	    in.normalize();
 
 	    if (dot(in, info.n) > 0) {
-	      shading_info_t shadow;
-
 	      stats->rays++;
-	      if (scene.intersect(ray_t(info.p + info.n * 0.0001, in), shadow)) {
-		if (static_cast<const thing_t*>(emitter->thing.get()) ==
-		    static_cast<const thing_t*>(shadow.thing)) {
-		  auto il = info.b.to_local(in);
-		  auto ol = info.b.to_local(out);
-		  auto s  = il.y/(sample.pdf*shadow.d*shadow.d);
-		  light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
-		}
+	      if (!scene.occluded(ray_t(info.p + info.n * 0.0001, in), d)) {
+		auto il = info.b.to_local(in);
+		auto ol = info.b.to_local(out);
+		auto s  = il.y/(sample.pdf*d*d);
+		light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
 	      }
 	    }
 	  }

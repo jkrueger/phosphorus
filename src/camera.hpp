@@ -46,21 +46,21 @@ struct film_t {
 
   inline film_t(uint32_t w, uint32_t h, uint32_t s)
     : width(w), height(h), samples(s),
-      num_areas((w/128) * (h/128)),
+      num_areas((w/16) * (h/16)),
       area(num_areas) {
     pixels = new pixel_t[w*h];
-    areas  = new area_t[(w/128)*(h/128)];
+    areas  = new area_t[(w/16)*(h/16)];
 
-    uint32_t hareas = width/128;
+    uint32_t hareas = width/16;
 
-    for (uint32_t y=0; y<height/128; ++y) {
+    for (uint32_t y=0; y<height/16; ++y) {
       for (uint32_t x=0; x<hareas; ++x) {
 	area_t& area = areas[y * hareas + x];
-	area.x       = 128 * x;
-	area.y       = 128 * y;
-	area.width   = 128;
-	area.height  = 128;
-	area.samples = new sample_t[128*128*samples];
+	area.x       = 16 * x;
+	area.y       = 16 * y;
+	area.width   = 16;
+	area.height  = 16;
+	area.samples = new sample_t[16*16*samples];
       }
     }
   }
@@ -74,7 +74,7 @@ struct film_t {
   }
 
   inline void finalize() {
-    for (int i=0; i<(width/128)*(height/128); ++i) {
+    for (int i=0; i<(width/16)*(height/16); ++i) {
       auto& area = areas[i];
       for (int y=0; y<area.height; ++y) {
 	for (int x=0; x<area.width; ++x) {

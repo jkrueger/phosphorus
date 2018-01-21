@@ -26,6 +26,8 @@ struct thing_t {
 
   virtual bool intersect(const ray_t&, shading_info_t&) const = 0;
 
+  virtual bool occluded(const ray_t& ray, float_t d) const;
+
   virtual void sample(
     const vector_t& p,
     const sample_t*,
@@ -62,6 +64,15 @@ struct things_t : public thing_t {
       hit_anything |= hit_thing;
     }
     return hit_anything;
+  }
+
+  bool occluded(const ray_t& ray, float_t d) const {
+    for (const auto& thing : things) {
+      if (thing->occluded(ray, d)) {
+	return true;
+      }
+    }
+    return false;
   }
 
   void sample(const vector_t&, const sample_t*, sampled_vector_t* out, uint32_t) const {

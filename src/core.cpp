@@ -36,7 +36,7 @@ const material_t::p glass(new glass_t({1, 0.23, 0.85}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
-  film_t film(WIDTH, HEIGHT, 64);
+  film_t film(WIDTH, HEIGHT, 16);
   lenses::pinhole_t lens;
   //auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({800,500,-700}, 10.0, white)), L));
   auto light0 = light_t::p(new light_t(shadable_t::p(new sphere_t({0,2,-2}, 0.1, white)), L));

@@ -107,7 +107,7 @@ struct traversal_ray_t {
   float4_t d;
   const ray_t&    ray;
 
-  inline traversal_ray_t(const ray_t& ray)
+  inline traversal_ray_t(const ray_t& ray, float d)
     : ray(ray)
     , origin(ray.origin)
     , direction(ray.direction)
@@ -115,7 +115,7 @@ struct traversal_ray_t {
         1.0f/ray.direction.x,
         1.0f/ray.direction.y,
         1.0f/ray.direction.z))
-    , d(float4::load(std::numeric_limits<float>::max()))
+    , d(float4::load(d))
   {}
 } __attribute__((aligned (16)));
 
@@ -261,6 +261,22 @@ struct accelerator_t<triangle_t> {
     return things.size()-1;
   }
 };
+
+struct node_ref_t {
+  uint32_t offset : 28;
+  uint32_t flags  : 4;
+  float    d;
+};
+
+inline void push(
+  node_ref_t* stack, int32_t& top, const float* const dists,
+  const quad_node_t* node, uint32_t idx) {
+
+  stack[top].offset = node->offset[idx];
+  stack[top].flags  = node->num[idx];
+  stack[top].d      = dists[idx];
+  ++top;
+}
 
 template<typename T>
 struct bvh_t<T>::impl_t {
@@ -455,65 +471,26 @@ struct bvh_t<T>::impl_t {
     }
     return offset;
   }
-};
 
-template<typename T>
-bvh_t<T>::bvh_t()
-  : impl(new impl_t())
-{}
+  bool intersect(const ray_t& ray, shading_info_t& info, bool occlusion_query) {
+    static thread_local node_ref_t stack[128];
+    
+    uint32_t indices[] = {
+      0, 4, 8, 12, 16, 20
+    };
 
-template<typename T>
-void bvh_t<T>::build(const std::vector<typename T::p>& things) {
-  std::vector<build_info_t> infos(things.size());
-  for (uint32_t i=0; i<things.size(); ++i) {
-    infos[i] = build_info_t(i, things[i]->bounds());
-  }
-  impl->build(0, (uint32_t) infos.size(), infos, things);
+    if (ray.direction.x < 0.0) { std::swap(indices[0], indices[3]); }
+    if (ray.direction.y < 0.0) { std::swap(indices[1], indices[4]); }
+    if (ray.direction.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-  std::clog
-    << "Finished building BVH."
-    << impl->bounds
-    << std::endl
-    << "With number of nodes: " << impl->nodes.size()
-    << ", depth=" << impl->max_depth
-    << ", lonely=" << impl->lonely
-    << std::endl;
-}
+    traversal_ray_t tray(ray, info.d);
 
-struct node_ref_t {
-  uint32_t offset : 28;
-  uint32_t flags  : 4;
-  float    d;
-};
-
-inline void push(node_ref_t* stack, int32_t& top, const float* const dists, const quad_node_t* node, uint32_t idx) {
-  stack[top].offset = node->offset[idx];
-  stack[top].flags  = node->num[idx];
-  stack[top].d      = dists[idx];
-  ++top;
-}
-
-template<typename T>
-bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
-  static thread_local node_ref_t stack[128];
-
-  uint32_t indices[] = {
-    0, 4, 8, 12, 16, 20
-  };
-
-  if (ray.direction.x < 0.0) { std::swap(indices[0], indices[3]); }
-  if (ray.direction.y < 0.0) { std::swap(indices[1], indices[4]); }
-  if (ray.direction.z < 0.0) { std::swap(indices[2], indices[5]); }
-
-  traversal_ray_t tray(ray);
-
-  bool hit_anything = false;
-  if (impl->num_nodes > 0) {
+    bool hit_anything = false;
 
     auto top = 1;
     stack[0].offset = 0;
     stack[0].flags  = 0;
-    stack[0].d = std::numeric_limits<float>::max();
+    stack[0].d = std::numeric_limits<float>::lowest();
 
     while (top > 0) {
       auto cur = stack[--top];
@@ -522,7 +499,7 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
       }
 
       while (cur.flags == 0) {
-	auto node = impl->resolve(cur.offset);
+	auto node = resolve(cur.offset);
 	
 	float4_t dist;
 	auto mask = bounds::intersect_all<4>(tray.origin, tray.ood, tray.d, node->bounds, indices, dist);
@@ -589,13 +566,54 @@ bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
       }
 
       if (cur.flags > 0) {
-	if (accelerator_t<T>::intersect(tray, impl->things[cur.offset], info)) {
+	if (accelerator_t<T>::intersect(tray, things[cur.offset], info)) {
 	  hit_anything = true;
 	}
       }
+
+      if (hit_anything && occlusion_query) {
+	// stop traversal if this is an occlusion query. we just want to
+	// know if anything got hit
+	break;
+      }
     }
+    return hit_anything;
   }
-  return hit_anything;
+};
+
+template<typename T>
+bvh_t<T>::bvh_t()
+  : impl(new impl_t())
+{}
+
+template<typename T>
+void bvh_t<T>::build(const std::vector<typename T::p>& things) {
+  std::vector<build_info_t> infos(things.size());
+  for (uint32_t i=0; i<things.size(); ++i) {
+    infos[i] = build_info_t(i, things[i]->bounds());
+  }
+  impl->build(0, (uint32_t) infos.size(), infos, things);
+
+  std::clog
+    << "Finished building BVH."
+    << impl->bounds
+    << std::endl
+    << "With number of nodes: " << impl->nodes.size()
+    << ", depth=" << impl->max_depth
+    << ", lonely=" << impl->lonely
+    << std::endl;
+}
+
+template<typename T>
+bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
+  return impl->intersect(ray, info, false);
+}
+
+template<typename T>
+bool bvh_t<T>::occluded(const ray_t& ray, float_t d) const {
+  shading_info_t info;
+  info.d = d;
+  return impl->intersect(ray, info, true);
 }
 
 template class bvh_t<thing_t>;

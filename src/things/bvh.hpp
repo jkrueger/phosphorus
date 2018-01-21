@@ -14,8 +14,10 @@ struct bvh_t : public thing_t {
   bvh_t();
 
   void build(const std::vector<typename T::p>& things);
-  
+
   bool intersect(const ray_t&, shading_info_t&) const;
+
+  bool occluded(const ray_t& ray, float_t d) const;
 
   aabb_t bounds() const
   { return aabb_t(); }

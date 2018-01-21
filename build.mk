@@ -7,6 +7,7 @@ rayray_sources_$(d) += \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
         codec/mesh/ply.cpp \
+        thing.cpp \
 	things/sphere.cpp \
         things/plane.cpp \
         things/mesh.cpp \
