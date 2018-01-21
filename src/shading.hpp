@@ -3,15 +3,16 @@
 #include "precision.hpp"
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
+#include "math/sampling.hpp"
 #include "math/vector.hpp"
 #include "material.hpp"
-#include "thing.hpp"
 #include "util/color.hpp"
 
 #include <limits>
 
 struct bxdf_t {
-  typedef std::shared_ptr<bxdf_t> p;
+  //typedef std::shared_ptr<bxdf_t> p;
+  typedef bxdf_t* p;
 
   enum flags_t {
     NONE         = 0,
@@ -70,27 +71,25 @@ struct bxdf_t {
 };
 
 struct shading_info_t {
-  float_t          d;
+  float_t         d;
   vector_t        p;
   vector_t        n;
   invertible_base b;
+  material_t::p   material;
   bxdf_t::p       _bxdf;
   color_t         emissive;
-
-  const shadable_t* thing;
 
   inline shading_info_t()
     : d(std::numeric_limits<float_t>::max())
   {}
 
   template<typename T, typename... XS>
-  inline bool update(const ray_t& ray, float_t _d, const T* shadable, const XS& ...xs) {
+  inline bool update(const ray_t& ray, float_t _d, const T* thing, const XS& ...xs) {
     if (_d < d) {
       d = _d;
       p = ray.at(d);
-      thing = static_cast<const shadable_t*>(shadable);
-      shadable->shading_parameters(*this, p, xs...);
-      b  = invertible_base(n);
+      thing->shading_parameters(*this, p, xs...);
+      b = invertible_base(n);
       return true;
     }
     return false;
@@ -98,7 +97,7 @@ struct shading_info_t {
 
   inline bxdf_t::p& bxdf() {
     if (!_bxdf) {
-      _bxdf = thing->material->at(*this);
+      _bxdf = material->at(*this);
     }
     return _bxdf;
   }

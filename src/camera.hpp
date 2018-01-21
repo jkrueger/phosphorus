@@ -13,8 +13,6 @@
 #include <string>
 #include <thread>
 
-struct scene_t;
-
 struct film_t {
 
   uint32_t width;
@@ -123,7 +121,7 @@ struct camera_t {
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
-    : position(p), b(d, up), integrator(stats), stats(stats)
+    : position(p), b(d, up), integrator(), stats(stats)
   {}
 
   static inline p look_at(
@@ -136,8 +134,8 @@ struct camera_t {
     return p(new camera_t(pos, z, up, stats));
   }
 
-  template<typename Film, typename Lens>
-  void snapshot(Film& film, const Lens& lens, const thing_t& scene) {
+  template<typename Film, typename Lens, typename Scene>
+  void snapshot(Film& film, const Lens& lens, const Scene& scene) {
 
     auto samples_per_dimension = (uint32_t) std::sqrt(film.samples);
 

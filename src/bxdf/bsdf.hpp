@@ -6,7 +6,7 @@
 #include <algorithm>
 
 struct bsdf_t : public bxdf_t {
-  typedef std::shared_ptr<bsdf_t> p;
+  typedef bsdf_t* p;
   
   static const uint8_t MAX_BXDF = 8;
 

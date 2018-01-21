@@ -207,30 +207,8 @@ struct moeller_trumbore_t {
 } __attribute__((aligned (16)));
 
 template<typename T>
-struct accelerator_t {
-  typedef std::vector<typename T::p> storage_t;
-
-  static inline bool intersect(
-    traversal_ray_t& ray,
-    const typename T::p& thing,
-    shading_info_t& info) {
-
-    return thing->intersect(ray.ray, info);
-  }
-
-  static inline uint32_t insert_things(
-    uint32_t start, uint32_t end,
-    std::vector<build_info_t>& infos,
-    const std::vector<typename T::p>& unsorted,
-    storage_t& things) {
-
-    for (auto i=start; i<end; ++i) {
-      things.emplace_back(unsorted[infos[i].index]);
-    }
-
-    return start;
-  }
-};
+struct accelerator_t
+{};
 
 template<>
 struct accelerator_t<triangle_t> {
@@ -587,7 +565,7 @@ bvh_t<T>::bvh_t()
 {}
 
 template<typename T>
-void bvh_t<T>::build(const std::vector<typename T::p>& things) {
+void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
   std::vector<build_info_t> infos(things.size());
   for (uint32_t i=0; i<things.size(); ++i) {
     infos[i] = build_info_t(i, things[i]->bounds());
@@ -616,5 +594,4 @@ bool bvh_t<T>::occluded(const ray_t& ray, float_t d) const {
   return impl->intersect(ray, info, true);
 }
 
-template class bvh_t<thing_t>;
 template class bvh_t<triangle_t>;

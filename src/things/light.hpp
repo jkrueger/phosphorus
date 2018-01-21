@@ -2,35 +2,36 @@
 
 #include "precision.hpp"
 #include "thing.hpp"
+#include "math/orthogonal_base.hpp"
+#include "util/color.hpp"
 
-struct light_t : public thing_t {
+struct light_t {
   typedef std::shared_ptr<light_t> p;
 
-  shadable_t::p thing;
-  float_t       area;
-  color_t       emissive;
+  surface_t::p surface;
+  float_t      area;
+  color_t      emissive;
+  vector_t     position;
 
-  light_t(shadable_t::p t, const color_t& e)
-    : thing_t(t->position),
-      thing(t),
+  light_t(const vector_t& p, const surface_t::p& s, const color_t& e)
+    : surface(s),
       area(0.0),
-      emissive(e)
+      emissive(e),
+      position(p)
   {}
 
-  bool intersect(const ray_t& ray, shading_info_t& info) const {
-    if (thing->intersect(ray, info)) {
-      info.emissive = emissive;
-      return true;
+  void sample(
+    const vector_t& p,
+    const sample_t* samples,
+    sampled_vector_t* out, uint32_t n) const {
+
+    surface->sample(p, samples, out, n);
+
+    orthogonal_base base((p - position).normalize());
+
+    for (auto i=0; i<n; ++i) {
+      out[i].sampled = base.to_world(out[i].sampled) + position;
     }
-    return false;
-  }
-
-  void sample(const vector_t& p, const sample_t* samples, sampled_vector_t* out, uint32_t n) const {
-    thing->sample(p, samples, out, n);
-  }
-
-  aabb_t bounds() const {
-    return thing->bounds();
   }
 
   const color_t& emit() const {

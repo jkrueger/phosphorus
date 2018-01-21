@@ -7,11 +7,10 @@ rayray_sources_$(d) += \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
         codec/mesh/ply.cpp \
-        thing.cpp \
-	things/sphere.cpp \
-        things/plane.cpp \
+	math/parametric/sphere.cpp \
         things/mesh.cpp \
         things/bvh.cpp \
+        things/scene.cpp \
         material/diffuse.cpp \
         material/plastic.cpp \
         material/mirror.cpp \

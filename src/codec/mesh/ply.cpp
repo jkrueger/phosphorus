@@ -30,7 +30,7 @@ int add_face(p_ply_argument argument) {
 }
 
 mesh_t::p codec::mesh::ply::load(const std::string& path, const material_t::p& default_material) {
-  auto mesh = new mesh_t({0,0,0}, default_material);
+  auto mesh = new mesh_t(default_material);
 
   if (auto ply = ply_open(path.c_str(), NULL, 0, NULL)) {
     if (!ply_read_header(ply)) {

@@ -8,7 +8,7 @@
 
 struct plastic_t : public material_t {
   color_t   kd, ks;
-  float_t    s;
+  float_t   s;
   bxdf_t::p diffuse, specular;
   bsdf_t::p bsdf;
 
