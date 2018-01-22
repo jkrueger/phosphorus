@@ -27,7 +27,7 @@ struct bpt_t {
     const auto light = scene.sample_light();
 
     const auto light_sample = uniform_sample_hemisphere();
-    const auto path_sample  = bxdf.sample(info.n, sample, wo);
+    const auto path_sample  = bxdf->sample(info.n, sample, wo);
 
     shading_info_t light_info;
     if (!scene.trace(ray_t(light, light_sample), light_info)) {
@@ -39,8 +39,13 @@ struct bpt_t {
       // abort
     }
 
-    // connect paths
-    
+    const auto dir = (light_info.p - camera_info.p);
+    if (!scene.occluded(ray_t(camera_info.p, dir.normalize()), dir.length())) {
+      // connect paths
+    }
+
+    // terminate low contribution paths
+
     return indirect;
   }
 };
