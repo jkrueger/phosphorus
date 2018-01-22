@@ -2,6 +2,7 @@
 
 #include "math/ray.hpp"
 #include "math/sampling.hpp"
+#include "scene.hpp"
 #include "shading.hpp"
 #include "util/color.hpp"
 
@@ -22,7 +23,11 @@ struct bpt_t {
     , const shading_info_t& info) const {
     color_t indirect;
 
-    // generate light and camera path segments and connect
+    const auto bxdf  = info.bxdf();
+    const auto light = scene.sample_light();
+    const auto path  = bxdf.sample(info.n, sample, wo);
+
+    // trace light and camera paths and connect paths though and occlusion check
     
     return indirect;
   }
