@@ -25,9 +25,21 @@ struct bpt_t {
 
     const auto bxdf  = info.bxdf();
     const auto light = scene.sample_light();
-    const auto path  = bxdf.sample(info.n, sample, wo);
 
-    // trace light and camera paths and connect paths though and occlusion check
+    const auto light_sample = uniform_sample_hemisphere();
+    const auto path_sample  = bxdf.sample(info.n, sample, wo);
+
+    shading_info_t light_info;
+    if (!scene.trace(ray_t(light, light_sample), light_info)) {
+      // abort
+    }
+
+    shading_info_t camera_info;
+    if (!scene.trace(ray_t(info.p, path_sample), camera_info)) {
+      // abort
+    }
+
+    // connect paths
     
     return indirect;
   }
