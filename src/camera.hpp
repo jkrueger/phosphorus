@@ -137,10 +137,10 @@ struct camera_t {
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
 
-    auto samples_per_dimension = (uint32_t) std::sqrt(film.samples);
+    auto spd = (uint32_t) std::sqrt(film.samples);
 
     samples = new sample_t[film.samples];
-    sampling::strategies::stratified_2d(samples, (uint32_t) std::sqrt(film.samples));
+    sampling::strategies::stratified_2d(samples, (uint32_t) spd);
 
     float_t ratio = (float_t) film.width / (float_t) film.height;
     float_t stepx = 1.0/film.width;

@@ -23,37 +23,39 @@
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
-const color_t L(1.0, 1.0, 1.0);
+const color_t L(2.0, 2.0, 2.0);
 
 const material_t::p white(new diffuse_reflector_t({1, 1, 1}));
 // const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 10.0));
-// const material_t::p red(new diffuse_reflector_t({1, 0.0, 0.0}));
-// const material_t::p pink(new diffuse_reflector_t({1, 0.4, 0.1}));
-// const material_t::p jade(new diffuse_reflector_t({0, 0.65, 0.41}));
-// const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}));
+const material_t::p red(new diffuse_reflector_t({1, 0.0, 0.0}));
+const material_t::p pink(new diffuse_reflector_t({1, 0.4, 0.1}));
+const material_t::p jade(new diffuse_reflector_t({0, 0.65, 0.41}));
+const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}));
 // const material_t::p mirror(new mirror_t({0.5, 0.5, 0.5}));
 // const material_t::p glass(new glass_t({1, 0.23, 0.85}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
-  film_t film(WIDTH, HEIGHT, 16);
+  film_t film(WIDTH, HEIGHT, 256);
   lenses::pinhole_t lens;
-  auto light0 = light_t::p(new light_t({0.0f, 1.0f, -3.0f}, surface_t::p(new things::sphere_t(0.2)), L));
+  auto light0 = light_t::p(new light_t({0.0f, 3.0f, 0.0f}, surface_t::p(new things::sphere_t(0.5)), L));
   printf("Loading mesh\n");
 
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, white));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", jade));
 
-  scene_t<mesh_bvh_t> scene(stats);
   printf("preprocessing\n");
-
-  auto camera = camera_t<path_tracer_t>::look_at(stats, {0, 1,-5}, {0,1,0});
-  //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
-  //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
+  scene_t<mesh_bvh_t> scene(stats);
   scene.add(light0);
   scene.add(bunny);
   scene.add(floor);
   scene.preprocess();
+
+  printf("meshes: %p, %p\n", bunny.get(), floor.get());
+
+  auto camera = camera_t<path_tracer_t>::look_at(stats, {3, 1, -3}, {0,1,0});
+  //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
+  //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
 
   auto done = false;
   auto t = std::thread([&](){

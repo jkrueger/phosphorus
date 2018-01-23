@@ -151,7 +151,7 @@ struct moeller_trumbore_t {
 
     const auto one = load(1.0f), zero = load(0.0f),
       peps = load(0.00000001f),
-      meps = load(-0.00000001);
+      meps = load(-0.00000001f);
 
     const auto p   = cross(ray.direction, e1);
     const auto det = dot(e0, p);
@@ -170,9 +170,9 @@ struct moeller_trumbore_t {
     const auto dmask = mand(gte(d, zero), lt(d, ray.d));
 
     auto mask = movemask(mand(mand(mand(vmask, umask), dmask), xmask));
-    auto maskcpy = mask;
 
     bool ret = false;
+    
     if (mask != 0) {
 
       float dists[4];
@@ -182,23 +182,23 @@ struct moeller_trumbore_t {
 
       int idx = -1;
       while(mask != 0) {
-	auto x = __bscf(mask);
-	if (dists[x] > 0.0f && dists[x] < closest && triangles[3-x]) {
-	  closest = dists[x];
-	  idx = x;
-	}
+    	auto x = __bscf(mask);
+    	if (dists[x] > 0.0f && dists[x] < closest && triangles[3-x]) {
+    	  closest = dists[x];
+    	  idx = x;
+    	}
       }
 
       if (idx != -1) {
-	float us[4];
-	float vs[4];
-	store(u, us); store(v, vs);
-	ret = info.update(ray.ray, closest, triangles[3-idx].get(), us[idx], vs[idx]);
+    	float us[4];
+    	float vs[4];
+    	store(u, us); store(v, vs);
+    	ret = info.update(ray.ray, closest, triangles[3-idx].get(), us[idx], vs[idx]);
+	
+    	//d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 1, 0, 3)));
+        //d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 0, 3, 2)));
 
-	d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 1, 0, 3)));
-        d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 0, 3, 2)));
-
-	ray.d = d;
+    	ray.d = float4::load(info.d);
       }
     }
 
@@ -473,7 +473,6 @@ struct bvh_t<T>::impl_t {
     while (top > 0) {
       auto cur = stack[--top];
       if (cur.d > info.d) {
-	if (cur.d < 0 || info.d < 0)
 	continue;
       }
 
@@ -481,14 +480,18 @@ struct bvh_t<T>::impl_t {
 	auto node = resolve(cur.offset);
 	
 	float4_t dist;
-	auto mask = bounds::intersect_all<4>(tray.origin, tray.ood, tray.d, node->bounds, indices, dist);
+	auto mask = bounds::intersect_all<4>(
+          tray.origin, tray.ood, tray.d,
+	  node->bounds, indices,
+	  dist);
+ 
 	if (mask == 0) {
 	  break;
 	}
 	
 	float dists[4];
 	float4::store(dist, dists);
-
+	
 	auto a = __bscf(mask);
 	if (likely(mask == 0)) {
 	  cur.offset = node->offset[a];
@@ -556,6 +559,7 @@ struct bvh_t<T>::impl_t {
 	break;
       }
     }
+    
     return hit_anything;
   }
 };

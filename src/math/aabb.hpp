@@ -175,8 +175,6 @@ namespace bounds {
     using namespace float4;
 
     // eventually tnear/tfar values
-    const float4_t plus_inf  = load(float4::plus_inf);
-    const float4_t minus_inf = load(float4::minus_inf);
     const float4_t zero = load(0.0f);
 
     const float4_t min_x = mul(sub(load(&bounds[indices[0]]), o.x), ood.x);

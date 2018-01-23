@@ -16,6 +16,8 @@ struct triangle_t {
 
   triangle_t(const mesh_t* m, int a, int b, int c);
 
+  // bool intersect(const ray_t& ray, shading_info_t& info) const;
+
   void shading_parameters(shading_info_t&, const vector_t&, float_t u, float_t v) const;
 
   aabb_t bounds() const;
