@@ -183,7 +183,7 @@ struct moeller_trumbore_t {
       int idx = -1;
       while(mask != 0) {
 	auto x = __bscf(mask);
-	if (dists[x] < closest && triangles[3-x]) {
+	if (dists[x] > 0.0f && dists[x] < closest && triangles[3-x]) {
 	  closest = dists[x];
 	  idx = x;
 	}
@@ -473,6 +473,7 @@ struct bvh_t<T>::impl_t {
     while (top > 0) {
       auto cur = stack[--top];
       if (cur.d > info.d) {
+	if (cur.d < 0 || info.d < 0)
 	continue;
       }
 
@@ -487,7 +488,7 @@ struct bvh_t<T>::impl_t {
 	
 	float dists[4];
 	float4::store(dist, dists);
-	
+
 	auto a = __bscf(mask);
 	if (likely(mask == 0)) {
 	  cur.offset = node->offset[a];
@@ -495,7 +496,7 @@ struct bvh_t<T>::impl_t {
 	  cur.d      = dists[a];
 	  continue;
 	}
-	
+
 	auto b = __bscf(mask);
 	if (likely(mask == 0)) {
 	  if (dists[a] < dists[b]) {

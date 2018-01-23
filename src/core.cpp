@@ -3,6 +3,7 @@
 #include "thing.hpp"
 #include "things/bvh.hpp"
 #include "things/mesh.hpp"
+#include "things/tesselator.hpp"
 #include "things/parametric.hpp"
 #include "things/scene.hpp"
 #include "material.hpp"
@@ -22,7 +23,7 @@
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
-const color_t L(16.0, 16.0, 16.0);
+const color_t L(1.0, 1.0, 1.0);
 
 const material_t::p white(new diffuse_reflector_t({1, 1, 1}));
 // const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 10.0));
@@ -37,19 +38,21 @@ int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
   film_t film(WIDTH, HEIGHT, 16);
   lenses::pinhole_t lens;
-  auto light0 = light_t::p(new light_t({1.0f, 1.0f, -3.0f}, surface_t::p(new things::sphere_t(0.1)), L));
+  auto light0 = light_t::p(new light_t({0.0f, 1.0f, -3.0f}, surface_t::p(new things::sphere_t(0.2)), L));
   printf("Loading mesh\n");
 
-  mesh_t::p mesh(codec::mesh::ply::load("models/bunny.ply", white));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
+  mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, white));
 
   scene_t<mesh_bvh_t> scene(stats);
   printf("preprocessing\n");
 
-  auto camera = camera_t<path_tracer_t>::look_at(stats, {3, 1,-3}, {0,1,0});
+  auto camera = camera_t<path_tracer_t>::look_at(stats, {0, 1,-5}, {0,1,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
   scene.add(light0);
-  scene.add(mesh);
+  scene.add(bunny);
+  scene.add(floor);
   scene.preprocess();
 
   auto done = false;
