@@ -9,7 +9,7 @@
 namespace fresnel {
   struct none_t {
     inline color_t operator()(float_t a) const {
-      return color_t(1, 1, 1);
+      return color_t(1.f, 1.f, 1.f);
     }
   };
 

@@ -15,6 +15,7 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& in, const vector_t& out) const {
+      //std::cout << k << std::endl;
       return k * (1.0 / M_PI);
     }
 

@@ -21,6 +21,10 @@ struct color_t {
     : r(_r), g(_g), b(_b)
   {}
 
+  static inline color_t from_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    return color_t(r/255.0f, g/255.0f, b/255.0f);
+  }
+
   inline color_t& scale(float_t s) {
     r *= s; g *= s; b *= s;
     return *this;
@@ -62,4 +66,8 @@ inline color_t& operator*=(color_t& l, const color_t& r) {
 
 inline color_t operator*(const color_t& l, const color_t& r) {
   return color_t(l.r*r.r, l.g*r.g, l.b*r.b);
+}
+
+inline std::ostream& operator<<(std::ostream& o, const color_t& c) {
+  return o << "color_t{" << c.r << ", " << c.g << ", " << c.b << "}";
 }
