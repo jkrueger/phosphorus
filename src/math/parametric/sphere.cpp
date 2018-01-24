@@ -19,7 +19,7 @@ namespace parametric {
 
     for (auto i=0; i<num; ++i) {
 
-      sampling::strategies::uniform_sample_hemisphere(samples[i], out[i]);
+      sampling::hemisphere::uniform(samples[i], out[i]);
 
       out[i].pdf *= 1.0f / (radius2 * M_PI);
       out[i].sampled = out[i].sampled.scale(radius);

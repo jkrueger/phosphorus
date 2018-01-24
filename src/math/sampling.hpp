@@ -34,11 +34,10 @@ struct sampled_t {
 typedef sampled_t<vector_t> sampled_vector_t;
 
 namespace sampling {
-  namespace strategies {
-
+  namespace hemisphere {
     static const float_t UNIFORM_DISC_PDF = 1.0f / M_PI; 
 
-    inline void uniform_sample_hemisphere(const sample_t& sample, sampled_vector_t& out) {
+    inline void uniform(const sample_t& sample, sampled_vector_t& out) {
       const float r   = std::sqrt(1.0 - sample.u * sample.u);
       const float phi = 2 * M_PI * sample.v;
 
@@ -46,7 +45,7 @@ namespace sampling {
       out.pdf     = UNIFORM_DISC_PDF;
     }
 
-    inline void cosine_sample_hemisphere(const sample_t& sample, sampled_vector_t& out) {
+    inline void cosine_weighted(const sample_t& sample, sampled_vector_t& out) {
       const float_t r = std::sqrt(sample.u);
       const float_t theta = 2 * M_PI * sample.v;
  
@@ -56,7 +55,10 @@ namespace sampling {
       out.sampled = vector_t(x, std::sqrt(std::max(0.0f, 1.0f - sample.u)), y);
       out.pdf     = out.sampled.y * UNIFORM_DISC_PDF;
     }
+    
+  }
 
+  namespace strategies {
     inline void stratified_2d(sample_t* samples, uint32_t num) {
       const float_t step = 1.0f / (float_t)num;
       float_t dy = 0.0;

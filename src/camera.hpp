@@ -17,6 +17,7 @@ struct film_t {
 
   uint32_t width;
   uint32_t height;
+  uint32_t spd;
   uint32_t samples;
 
   struct pixel_t {
@@ -42,8 +43,8 @@ struct film_t {
   uint32_t        num_areas;
   std::atomic_int area;
 
-  inline film_t(uint32_t w, uint32_t h, uint32_t s)
-    : width(w), height(h), samples(s),
+  inline film_t(uint32_t w, uint32_t h, uint32_t spd)
+    : width(w), height(h), spd(spd), samples(spd*spd),
       num_areas((w/16) * (h/16)),
       area(num_areas) {
     pixels = new pixel_t[w*h];
@@ -131,16 +132,15 @@ struct camera_t {
 
     auto z = normalize(at - pos);
     auto x = normalize(cross(z, up));
+    
     return p(new camera_t(pos, z, up, stats));
   }
 
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
 
-    auto spd = (uint32_t) std::sqrt(film.samples);
-
     samples = new sample_t[film.samples];
-    sampling::strategies::stratified_2d(samples, (uint32_t) spd);
+    sampling::strategies::stratified_2d(samples, film.spd);
 
     float_t ratio = (float_t) film.width / (float_t) film.height;
     float_t stepx = 1.0/film.width;
@@ -167,8 +167,11 @@ struct camera_t {
 		  auto sx  = samples[i].u - 0.5f;
 		  auto sy  = samples[i].v - 0.5f;
 
-		  ray_t ray(position, b.to_world({sx * stepx + ndcx, sy * stepy + ndcy, 1.0f}));
-		  ray.direction.normalize();
+		  const auto dir = b.to_world({
+		    sx * stepx + ndcx, sy * stepy + ndcy, 1.0f
+		  }).normalize();
+
+		  const ray_t ray(position, dir);
 
 		  auto &sample = area->samples[n++];
 		  sample.c = integrator.trace(scene, ray);

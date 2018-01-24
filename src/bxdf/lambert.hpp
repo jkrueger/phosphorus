@@ -15,12 +15,11 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& in, const vector_t& out) const {
-      //std::cout << k << std::endl;
       return k * (1.0 / M_PI);
     }
 
     color_t sample(const vector_t&, const sample_t& sample, sampled_vector_t& out) const {
-      sampling::strategies::cosine_sample_hemisphere(sample, out);
+      sampling::hemisphere::cosine_weighted(sample, out);
       return k * (1.0 / M_PI);
     }
 

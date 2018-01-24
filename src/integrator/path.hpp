@@ -87,23 +87,23 @@ struct single_path_t {
 
 	color_t light;
 	for (const auto& sample : light_samples) {
-	  auto wo  = sample.sampled - info.p;
-	  auto d   = wo.length() - 0.0002;
+	  auto wo       = sample.sampled - info.p;
+	  const auto d  = wo.length() - 0.0002;
 	  wo.normalize();
 
 	  if (dot(wo, info.n) > 0) {
 	    if (!scene.occluded(ray_t(info.p + info.n * 0.0001, wo), d)) {
-	      auto wil = info.b.to_local(wo);
-	      auto wol = info.b.to_local(wi);
-	      auto s   = wil.y/(sample.pdf*d*d);
+	      const auto wil = info.b.to_local(wo);
+	      const auto wol = info.b.to_local(wi);
+	      const auto s   = wil.y/(sample.pdf*d*d);
+
 	      light += (emitter->emit() * bxdf->f(wil, wol)).scale(s);
 	    }
 	  }
 	}
-	r += light.scale(1.0/samples);
+	r += light * (1.0f/samples);
       }
     }
-    r.scale(1.0/scene.lights.size());
-    return r;
+    return r * (1.0f/scene.lights.size());
   }
 };

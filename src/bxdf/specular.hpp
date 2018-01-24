@@ -7,7 +7,7 @@
 
 namespace bxdf {
   struct simple_specular_t : public bxdf_t {
-    float_t  s;
+    float_t s;
     color_t k;
 
     simple_specular_t()
@@ -23,7 +23,7 @@ namespace bxdf {
     }
 
     color_t sample(const vector_t&, const sample_t& sample, sampled_vector_t& out) const {
-      sampling::strategies::cosine_sample_hemisphere(sample, out);
+      sampling::hemisphere::cosine_weighted(sample, out);
       return k * (1.0 / M_PI);
     }
 

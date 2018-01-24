@@ -30,7 +30,7 @@ struct bsdf_t : public bxdf_t {
   }
 
   color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
-    auto index = std::min((uint8_t) std::floor(sample.u * num_bxdf), num_bxdf);
+    auto index = std::min((int32_t) std::floor(sample.u * num_bxdf), (num_bxdf-1));
     auto f     = bxdfs[index]->sample(v, sample, out);
 
     for (auto i=0; i<num_bxdf; ++i) {
