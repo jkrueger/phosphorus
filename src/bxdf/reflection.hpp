@@ -72,7 +72,7 @@ namespace bxdf {
   template<typename Fresnel>
   struct specular_transmission_t : public bxdf_t {
     Fresnel fresnel;
-    float_t  etaA, etaB;
+    float_t etaA, etaB;
     color_t k;
 
     template<typename... Args>

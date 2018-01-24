@@ -75,7 +75,7 @@ triangle_t::triangle_t(const mesh_t* m, int a, int b, int c)
 
 void triangle_t::shading_parameters(shading_info_t& info, const vector_t&, float_t u, float_t v) const {
   auto w = (1 - u - v);
-  info.n = u * mesh->normal(a) + v * mesh->normal(b) + w * mesh->normal(c);
+  info.n = w * mesh->normal(a) + u * mesh->normal(b) + v * mesh->normal(c);
   info.n.normalize();
   info.material = mesh->material;
 }
