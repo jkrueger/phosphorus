@@ -121,7 +121,7 @@ struct camera_t {
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
-    : position(p), b(d, up), integrator(), stats(stats)
+    : position(p), b(d, up), integrator(3, 8), stats(stats)
   {}
 
   static inline p look_at(

@@ -33,8 +33,8 @@ const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
 const material_t::p purple(new diffuse_reflector_t(color_t::from_rgb(70, 33, 122)));
 const material_t::p jade(new diffuse_reflector_t({0.f, 0.65, 0.41}));
 const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}));
-// const material_t::p mirror(new mirror_t({0.5, 0.5, 0.5}));
-// const material_t::p glass(new glass_t({1, 0.23, 0.85}));
+const material_t::p mirror(new mirror_t({0.5, 0.5, 0.5}));
+const material_t::p glass(new glass_t({1, 0.23, 0.85}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
   scene.add(floor);
   scene.preprocess();
 
-  auto camera = camera_t<path_tracer_t>::look_at(stats, {3, 1, -3}, {0,1,0});
+  auto camera = camera_t<single_path_t>::look_at(stats, {3, 1, -3}, {0,1,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
 

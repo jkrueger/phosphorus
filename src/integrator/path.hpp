@@ -10,20 +10,23 @@ thread_local std::random_device rd;
 thread_local std::mt19937 gen(rd());
 thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
-struct path_tracer_t {
+struct single_path_t {
+  const uint32_t spd;
+  const uint32_t samples;
+  const uint8_t  max_depth;
 
-  static const uint32_t SQRT_SHADOW_SAMPLES = 3;
-  static const uint32_t SHADOW_SAMPLES = SQRT_SHADOW_SAMPLES*SQRT_SHADOW_SAMPLES;
-  static const uint8_t  MAX_DEPTH = 8;
+  inline single_path_t(uint32_t spd, uint32_t max_depth)
+    : spd(spd), samples(spd*spd), max_depth(max_depth)
+  {}
 
   template<typename Scene>
   color_t trace(const Scene& scene, const ray_t& ray) const {
     color_t out;
-    ray_t   path = ray;
     color_t beta(1.0);
+    ray_t   path = ray;
 
     uint8_t depth = 0;
-    while (depth <= MAX_DEPTH) {
+    while (depth <= max_depth) {
 
       shading_info_t info;
       if (scene.intersect(path, info)) {
@@ -40,10 +43,15 @@ struct path_tracer_t {
       sample_t sample(dis(gen), dis(gen));
       sampled_vector_t next;
 
-      auto foo = info.b.to_local(-path.direction);
-      auto r = info.bxdf()->sample(foo, sample, next);
+      // sample the bsdf based on the previous path direction transformed
+      // into tangent space of the hit point
+      const auto pl  = info.b.to_local(-path.direction);
+      const auto r   = info.bxdf()->sample(pl, sample, next);
 
-      path = ray_t(info.p + info.n * 0.0001, info.b.to_world(next.sampled));
+      // transform the sampled direction back to world
+      path.direction = info.b.to_world(next.sampled);
+      path.origin    = info.p + info.n * 0.0001;
+
       beta = beta * (r * (std::abs(dot(path.direction, info.n)) / next.pdf));
 
       if (depth > 3) {
@@ -56,45 +64,46 @@ struct path_tracer_t {
 
       ++depth;
     }
-    
+
     return out;
   }
 
   template<typename Scene>
   color_t direct(const Scene& scene, shading_info_t& info, const ray_t& ray) const {
-    color_t direct;
-    auto& bxdf = info.bxdf();
+    color_t r;
+
+    const auto& bxdf = info.bxdf();
 
     if (scene.lights.size() > 0 && bxdf->has_distribution()) {
-      auto out  = ray.origin - info.p;
-      out.normalize();
+      auto wi  = ray.origin - info.p;
+      wi.normalize();
 
-      sample_t         uv[SHADOW_SAMPLES];
-      sampled_vector_t light_samples[SHADOW_SAMPLES];
+      sample_t         uv[samples];
+      sampled_vector_t light_samples[samples];
 
       for (auto& emitter : scene.lights) {
-	sampling::strategies::stratified_2d(uv, SQRT_SHADOW_SAMPLES);
-	emitter->sample(info.p, uv, light_samples, SHADOW_SAMPLES); 
+	sampling::strategies::stratified_2d(uv, spd);
+	emitter->sample(info.p, uv, light_samples, samples); 
 
 	color_t light;
-	for (auto& sample : light_samples) {
-	  auto in  = sample.sampled - info.p;
-	  auto d   = in.length() - 0.0002;
-	  in.normalize();
-	  
-	  if (dot(in, info.n) > 0) {
-	    if (!scene.occluded(ray_t(info.p + info.n * 0.0001, in), d)) {
-	      auto il = info.b.to_local(in);
-	      auto ol = info.b.to_local(out);
-	      auto s  = il.y/(sample.pdf*d*d);
-	      light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
+	for (const auto& sample : light_samples) {
+	  auto wo  = sample.sampled - info.p;
+	  auto d   = wo.length() - 0.0002;
+	  wo.normalize();
+
+	  if (dot(wo, info.n) > 0) {
+	    if (!scene.occluded(ray_t(info.p + info.n * 0.0001, wo), d)) {
+	      auto wil = info.b.to_local(wo);
+	      auto wol = info.b.to_local(wi);
+	      auto s   = wil.y/(sample.pdf*d*d);
+	      light += (emitter->emit() * bxdf->f(wil, wol)).scale(s);
 	    }
 	  }
 	}
-	direct += light.scale(1.0/SHADOW_SAMPLES);
+	r += light.scale(1.0/samples);
       }
     }
-    direct.scale(1.0/scene.lights.size());
-    return direct;
+    r.scale(1.0/scene.lights.size());
+    return r;
   }
 };
