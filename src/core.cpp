@@ -42,9 +42,8 @@ int main(int argc, char** argv) {
   lenses::pinhole_t lens;
   auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(1.0)), L));
   printf("Loading mesh\n");
-
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, orange));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", mirror));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
 
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);

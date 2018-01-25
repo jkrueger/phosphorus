@@ -76,7 +76,6 @@ struct shading_info_t {
   vector_t        n;
   invertible_base b;
   material_t::p   material;
-  bxdf_t::p       _bxdf;
   color_t         emissive;
 
   inline shading_info_t()
@@ -95,10 +94,13 @@ struct shading_info_t {
     return false;
   }
 
-  inline bxdf_t::p& bxdf() {
+  inline bxdf_t::p bxdf() const {
     //if (!_bxdf) {
-      _bxdf = material->at(*this);
+    return material->at(*this);
       //}
-    return _bxdf;
+  }
+
+  inline ray_t ray(const vector_t& dir) const {
+    return ray_t(p + n * 0.0001f, dir);
   }
 };

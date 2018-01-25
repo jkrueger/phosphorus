@@ -174,7 +174,7 @@ struct camera_t {
 		  const ray_t ray(position, dir);
 
 		  auto &sample = area->samples[n++];
-		  sample.c = integrator.trace(scene, ray);
+		  sample.c = integrator.li(scene, ray);
 		  sample.x = sx;
 		  sample.y = sy;
 		}

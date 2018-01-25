@@ -2,9 +2,8 @@
 
 #include "precision.hpp"
 
+#include <cmath>
 #include <iostream>
-
-#include <math.h>
 
 struct vector_t {
   union {
@@ -40,7 +39,7 @@ struct vector_t {
   }
 
   inline float_t length() const {
-    return sqrt(length2());
+    return std::sqrt(length2());
   }
 
   inline vector_t& normalize() {
@@ -112,6 +111,10 @@ inline float_t operator*(const vector_t& l, const vector_t& r) {
   return dot(l, r);
 }
 
+inline float_t abs_dot(const vector_t& l, const vector_t& r) {
+  return std::abs(dot(l, r));
+}
+
 inline vector_t normalize(const vector_t& v) {
   return vector_t(v).normalize();
 }
@@ -119,6 +122,10 @@ inline vector_t normalize(const vector_t& v) {
 inline vector_t reflect(const vector_t& v, const vector_t& n) {
   return -v + 2 * dot(v, n) * n;
 }
+
+inline bool in_same_hemisphere(const vector_t& a, const vector_t& b) {
+  return dot(a, b) > 0.0;
+} 
 
 inline std::ostream& operator<<(std::ostream& o, const vector_t& v) {
   return o << "vector_t{" << v.x << ", " << v.y << ", " << v.z << "}";
