@@ -56,7 +56,7 @@ struct single_path_t {
       beta = beta * (r * (abs_dot(path.direction, info.n) / next.pdf));
 
       if (depth > 3 && terminate_ray(beta)) {
-	break;
+      	break;
       }
 	
       ++depth;

@@ -95,12 +95,14 @@ struct shading_info_t {
   }
 
   inline bxdf_t::p bxdf() const {
-    //if (!_bxdf) {
     return material->at(*this);
-      //}
   }
 
   inline ray_t ray(const vector_t& dir) const {
-    return ray_t(p + n * 0.0001f, dir);
+    float_t offset = 0.0001f;
+    if (!in_same_hemisphere(dir, n)) {
+      offset = -offset;
+    }
+    return ray_t(p + n * offset, dir);
   }
 };

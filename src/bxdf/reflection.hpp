@@ -24,8 +24,9 @@ namespace fresnel {
       auto eI = etaI, eT = etaT; 
       auto cosTI    = clamp(a, -1.0f, 1.0f);
       bool entering = cosTI > 0;
-      if (entering) {
+      if (!entering) {
 	std::swap(eI, eT);
+	cosTI = std::abs(cosTI);
       }
       auto sinI = std::sqrt(std::max(0.0f, 1.0f - cosTI * cosTI));
       auto sinT = eI / eT * sinI;
@@ -81,30 +82,28 @@ namespace bxdf {
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
-      auto cos_n = v.y;
+      const auto cos_n = v.y;
       bool entering = cos_n > 0;
-      auto etaI = entering ? etaA : etaB;
-      auto etaT = entering ? etaB : etaA;
-      auto eta  = etaI / etaT;
+      const auto etaI = entering ? etaA : etaB;
+      const auto etaT = entering ? etaB : etaA;
+      const auto eta  = etaI / etaT;
 
       out.pdf = 1;
 
-      auto cosTI  = v.y;
-      auto sin2TI = std::max(0.0, 1.0 - cosTI * cosTI);
-      auto sin2TT = eta * eta * sin2TI;
+      const auto cosTI  = v.y;
+      const auto sin2TI = std::max(0.0, 1.0 - cosTI * cosTI);
+      const auto sin2TT = eta * eta * sin2TI;
 
       if (sin2TT >= 1) {
 	return 0;
       }
 
-      auto cosTT = std::sqrt(1 - sin2TT);
+      const auto cosTT = std::sqrt(1 - sin2TT);
 
-      out.sampled = eta * -v + (eta * cosTI - cosTT) * vector_t(0, v.y > 0.0 ? 1 : -1, 0);
+      const vector_t n(0, entering ? 1 : -1, 0);
+      out.sampled = eta * -v + (eta * cosTI - cosTT) * n;
 
-      // TODO: account for transmission from denser medium to less dense
-      // (e.g. from water to air)
-
-      auto spectrum = k * (color_t(1.0) - fresnel(out.sampled.y));
+      const auto spectrum = k * (color_t(1.0) - fresnel(out.sampled.y));
 
       return spectrum * (1.0 / std::abs(out.sampled.y));
     }

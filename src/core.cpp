@@ -23,7 +23,7 @@
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
-const color_t L(2.0, 2.0, 2.0);
+const color_t L(64.0, 64.0, 64.0);
 
 const material_t::p white(new diffuse_reflector_t({1.0f, 1.0f, 1.0f}));
 const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
@@ -38,12 +38,12 @@ const material_t::p glass(new glass_t({1, 1, 1}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
-  film_t film(WIDTH, HEIGHT, 4);
+  film_t film(WIDTH, HEIGHT, 24);
   lenses::pinhole_t lens;
-  auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(1.0)), L));
+  auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(0.2)), L));
   printf("Loading mesh\n");
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, orange));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", glass));
 
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   scene.add(floor);
   scene.preprocess();
 
-  auto camera = camera_t<single_path_t>::look_at(stats, {3, 1, -3}, {0,1,0});
+  auto camera = camera_t<single_path_t>::look_at(stats, {3, 3, -3}, {0,0.7,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
   //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
 

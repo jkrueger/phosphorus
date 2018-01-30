@@ -42,14 +42,13 @@ struct direct_t {
 
 	  wi.normalize();
 
-	  if (in_same_hemisphere(wi, info.n)) {
-	    if (!scene.occluded(info.ray(wi), d)) {
-	      const auto il = info.b.to_local(wi);
-	      const auto ol = info.b.to_local(wo);
-	      const auto s  = il.y/(sample.pdf*d*d);
+	  if (in_same_hemisphere(wi, info.n) &&
+	      !scene.occluded(info.ray(wi), d)) {
+	    const auto il = info.b.to_local(wi);
+	    const auto ol = info.b.to_local(wo);
+	    const auto s  = il.y/(sample.pdf*d*d);
 
-	      light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
-	    }
+	    light += (emitter->emit() * bxdf->f(il, ol)).scale(s);
 	  }
 	}
 	r += light.scale(1.0/samples);
