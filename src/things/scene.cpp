@@ -1,5 +1,5 @@
 #include "scene.hpp"
-#include "bvh.hpp"
+#include "traversal/bvh.hpp"
 
 template<typename T>
 void scene_t<T>::preprocess() {

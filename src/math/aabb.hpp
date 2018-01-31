@@ -149,7 +149,11 @@ namespace bounds {
 
   inline aabb_t merge(const aabb_t& l, const aabb_t& r) {
     aabb_t out(l);
-    return merge(merge(out, r.min), r.max);
+    for (auto i=0; i<3; ++i) {
+      out.min.v[i] = std::min(l.min.v[i], r.min.v[i]);
+      out.max.v[i] = std::max(l.max.v[i], r.max.v[i]);
+    }
+    return out;
   }
 
   inline vector_t offset(const aabb_t& l, const vector_t& r) {
@@ -158,41 +162,6 @@ namespace bounds {
     if (l.max.y > l.min.y) { o.y /= (l.max.y - l.min.y); } 
     if (l.max.z > l.min.z) { o.z /= (l.max.z - l.min.z); }
     return o;
-  }
-
-  template<int N>
-  inline size_t intersect_all(
-    const vector4_t& o, const vector4_t& ood, const float4_t& d,
-    const float* const bounds, const uint32_t* indices,
-    float4_t& dist);
-
-  template<>
-  inline size_t intersect_all<4>(
-    const vector4_t& o, const vector4_t& ood, const float4_t& d,
-    const float* const bounds, const uint32_t* indices,
-    float4_t& dist) {
-
-    using namespace float4;
-
-    // eventually tnear/tfar values
-    const float4_t zero = load(0.0f);
-
-    const float4_t min_x = mul(sub(load(&bounds[indices[0]]), o.x), ood.x);
-    const float4_t min_y = mul(sub(load(&bounds[indices[1]]), o.y), ood.y);
-    const float4_t min_z = mul(sub(load(&bounds[indices[2]]), o.z), ood.z);
-
-    const float4_t max_x = mul(sub(load(&bounds[indices[3]]), o.x), ood.x);
-    const float4_t max_y = mul(sub(load(&bounds[indices[4]]), o.y), ood.y);
-    const float4_t max_z = mul(sub(load(&bounds[indices[5]]), o.z), ood.z);
-
-    const float4_t n = max(max(min_x, min_y), max(min_z, zero));
-    const float4_t f = min(min(max_x, max_y), min(max_z, d));
-
-    const auto mask = lte(n, f);
-
-    dist = n;
-
-    return movemask(mask);
   }
 }
 

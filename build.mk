@@ -9,8 +9,8 @@ rayray_sources_$(d) += \
         codec/mesh/ply.cpp \
 	math/parametric/sphere.cpp \
         things/mesh.cpp \
-        things/bvh.cpp \
         things/scene.cpp \
+        traversal/bvh.cpp \
         material/diffuse.cpp \
         material/plastic.cpp \
         material/mirror.cpp \
@@ -19,7 +19,7 @@ rayray_sources_$(d) += \
 rayray_precompiled_$(d) :=
 rayray_target_dir_$(d)  := bin
 ifdef DEBUG
-rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src
+rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src -fno-inline
 else
 rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -I/usr/local/include -O3 -march=native -flto -funroll-loops
 endif

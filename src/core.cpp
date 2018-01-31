@@ -1,11 +1,11 @@
 #include "camera.hpp"
 #include "integrator/path.hpp"
 #include "thing.hpp"
-#include "things/bvh.hpp"
 #include "things/mesh.hpp"
 #include "things/tesselator.hpp"
 #include "things/parametric.hpp"
 #include "things/scene.hpp"
+#include "traversal/bvh.hpp"
 #include "material.hpp"
 #include "material/diffuse.hpp"
 #include "material/plastic.hpp"
@@ -38,12 +38,12 @@ const material_t::p glass(new glass_t({1, 1, 1}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
-  film_t film(WIDTH, HEIGHT, 24);
+  film_t film(WIDTH, HEIGHT, 4);
   lenses::pinhole_t lens;
   auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(0.2)), L));
   printf("Loading mesh\n");
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, orange));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", glass));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
 
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);

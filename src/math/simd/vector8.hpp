@@ -37,27 +37,27 @@ namespace vector8 {
 
   inline vector8_t add(const vector8_t& l, const vector8_t& r) {
     vector8_t out = {
-      _mm256_add_ps(l.x, r.x),
-      _mm256_add_ps(l.y, r.y),
-      _mm256_add_ps(l.z, r.z)
+      float8::add(l.x, r.x),
+      float8::add(l.y, r.y),
+      float8::add(l.z, r.z)
     };
     return out;
   }
 
   inline vector8_t sub(const vector8_t& l, const vector8_t& r) {
     vector8_t out = {
-      _mm256_sub_ps(l.x, r.x),
-      _mm256_sub_ps(l.y, r.y),
-      _mm256_sub_ps(l.z, r.z)
+      float8::sub(l.x, r.x),
+      float8::sub(l.y, r.y),
+      float8::sub(l.z, r.z)
     };
     return out;
   }
 
   inline vector8_t mul(const vector8_t& l, const vector8_t& r) {
     vector8_t out = {
-      _mm256_mul_ps(l.x, r.x),
-      _mm256_mul_ps(l.y, r.y),
-      _mm256_mul_ps(l.z, r.z)
+      float8::mul(l.x, r.x),
+      float8::mul(l.y, r.y),
+      float8::mul(l.z, r.z)
     };
     return out;
   }
