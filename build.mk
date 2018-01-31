@@ -9,8 +9,8 @@ rayray_sources_$(d) += \
         codec/mesh/ply.cpp \
 	math/parametric/sphere.cpp \
         things/mesh.cpp \
-        things/bvh.cpp \
         things/scene.cpp \
+        traversal/bvh.cpp \
         material/diffuse.cpp \
         material/plastic.cpp \
         material/mirror.cpp \
