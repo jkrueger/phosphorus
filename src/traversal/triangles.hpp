@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ray.hpp"
-#include "math/simd.hpp"
+#include "math/simd/vector8.hpp"
 
 /**
  * Moeller Trumbore triangle intersection tests. This serves as a baseline
@@ -9,9 +9,9 @@
  *
  */
 struct moeller_trumbore_t {
-  simd::max::vector_t e0;
-  simd::max::vector_t e1;
-  simd::max::vector_t v0;
+  simd::max::vector8_t e0;
+  simd::max::vector8_t e1;
+  simd::max::vector8_t v0;
 
   triangle_t::p triangles[MAX_PRIMS_IN_NODE];
 
@@ -29,13 +29,14 @@ struct moeller_trumbore_t {
       vv0[i] = triangles[i]->v0();
     }
 
-    e0 = simd::max::vector_t(ve0);
-    e1 = simd::max::vector_t(ve1);
-    v0 = simd::max::vector_t(vv0);
+    e0 = simd::max::vector8_t(ve0);
+    e1 = simd::max::vector8_t(ve1);
+    v0 = simd::max::vector8_t(vv0);
   };
 
   inline bool intersect(traversal_ray_t& ray, shading_info_t& info) const {
-    using namespace simd::max;
+    using namespace float8;
+    using namespace vector8;
 
     const auto
       one  = load(1.0f),
