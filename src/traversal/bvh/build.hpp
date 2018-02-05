@@ -260,7 +260,7 @@ namespace build {
 	    children[i].start, children[i].end,
 	    geometry.primitives,
 	    things);
-	
+
 	node->offset[i] = index;
 	node->num[i]    = children[i].count();
       }

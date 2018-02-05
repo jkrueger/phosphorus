@@ -4,6 +4,7 @@ products_$(d) := rayray
 
 rayray_sources_$(d) += \
 	core.cpp \
+        material.cpp \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
         codec/mesh/ply.cpp \

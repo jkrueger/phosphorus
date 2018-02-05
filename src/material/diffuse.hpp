@@ -11,5 +11,5 @@ struct diffuse_reflector_t : public material_t {
     : k(_k), lambert(new bxdf::lambert_t())
   {}
 
-  bxdf_t::p at(const shading_info_t&) const;
+  bxdf_t::p at() const;
 };

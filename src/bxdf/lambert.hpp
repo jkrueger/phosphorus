@@ -1,7 +1,7 @@
 #pragma once
 
 #include "precision.hpp"
-#include "shading.hpp"
+#include "bxdf.hpp"
 
 #include <algorithm>
 

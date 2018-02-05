@@ -2,6 +2,7 @@
 
 #include "ray.hpp"
 #include "math/simd/vector8.hpp"
+#include "things/mesh.hpp"
 
 /**
  * Moeller Trumbore triangle intersection tests. This serves as a baseline
@@ -14,28 +15,31 @@ struct moeller_trumbore_t {
   vector8_t e1;
   vector8_t v0;
 
-  triangle_t::p triangles[N];
+  uint32_t num;
 
-  inline moeller_trumbore_t(const triangle_t::p* tris, uint32_t num) {
-    vector_t
-      ve0[N],
-      ve1[N],
-      vv0[N];
+  uint32_t meshid[N];
+  uint32_t faceid[N];
+
+  inline moeller_trumbore_t(triangle_t::p* tris, uint32_t num)
+    : num(num) {
+    vector_t ve0[N], ve1[N], vv0[N];
 
     for (int i=0; i<num; ++i) {
-      triangles[i] = tris[i];
+      const auto& triangle = tris[i];
 
-      ve0[i] = triangles[i]->v1() - triangles[i]->v0();
-      ve1[i] = triangles[i]->v2() - triangles[i]->v0();
-      vv0[i] = triangles[i]->v0();
+      faceid[i] = triangle->id;
+      meshid[i] = triangle->mesh->id;
+
+      ve0[i] = triangle->v1() - triangle->v0();
+      ve1[i] = triangle->v2() - triangle->v0();
+      vv0[i] = triangle->v0();
     }
-
     e0 = vector8_t(ve0);
     e1 = vector8_t(ve1);
     v0 = vector8_t(vv0);
   };
 
-  inline bool intersect(traversal_ray_t& ray, shading_info_t& info) const {
+  inline bool intersect(traversal_ray_t& ray, float& d, segment_t& segment) const {
     using namespace float8;
     using namespace vector8;
 
@@ -51,49 +55,54 @@ struct moeller_trumbore_t {
     const auto t   = sub(ray.origin, v0);
     const auto q   = cross(t, e0);
 
-    const auto u   = mul(dot(t, p), ood);
-    const auto v   = mul(dot(ray.direction, q), ood);
+    const auto us  = mul(dot(t, p), ood);
+    const auto vs  = mul(dot(ray.direction, q), ood);
 
-    auto d = mul(dot(e1, q), ood);
+    auto ds = mul(dot(e1, q), ood);
 
     const auto xmask = mor(gt(det, peps), lt(det, meps));
-    const auto umask = gte(u, zero);
-    const auto vmask = mand(gte(v, zero), lte(add(u, v), one));
-    const auto dmask = mand(gte(d, zero), lt(d, ray.d));
+    const auto umask = gte(us, zero);
+    const auto vmask = mand(gte(vs, zero), lte(add(us, vs), one));
+    const auto dmask = mand(gte(ds, zero), lt(ds, ray.d));
 
     auto mask = movemask(mand(mand(mand(vmask, umask), dmask), xmask));
 
     bool ret = false;
-    
+
     if (mask != 0) {
 
       float dists[N];
       float closest = std::numeric_limits<float>::max();
 
-      store(d, dists);
+      store(ds, dists);
 
       int idx = -1;
       while(mask != 0) {
-    	auto x = __bscf(mask);
-    	if (dists[x] > 0.0f && dists[x] < closest && triangles[7-x]) {
+ 	auto x = __bscf(mask);
+    	if (dists[x] > 0.0f && dists[x] < closest && ((7-x) < num)) {
     	  closest = dists[x];
     	  idx = x;
     	}
       }
 
-      if (idx != -1) {
-    	float us[N];
-    	float vs[N];
-    	store(u, us); store(v, vs);
-    	ret = info.update(ray.ray, closest, triangles[7-idx].get(), us[idx], vs[idx]);
-	
-    	//d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 1, 0, 3)));
-        //d = _mm_min_ps(d, _mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 0, 3, 2)));
+      if (idx != -1 && closest < d) {
+    	float u[N];
+    	float v[N];
+    	store(us, u);
+    	store(vs, v);
 
-    	ray.d = load(info.d);
+    	segment.u    = u[idx];
+    	segment.v    = v[idx];
+    	segment.mesh = meshid[7-idx];
+    	segment.face = faceid[7-idx];
+
+    	d     = closest;
+    	ray.d = load(d);
+
+    	ret = true;
       }
     }
 
     return ret;
   }
-} __attribute__((aligned (16)));
+};

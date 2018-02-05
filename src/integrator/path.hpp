@@ -1,6 +1,6 @@
 #pragma once
 
-#include "direct.hpp"
+#include "bxdf.hpp"
 #include "precision.hpp"
 #include "math/ray.hpp"
 #include "math/sampling.hpp"
@@ -9,60 +9,64 @@
 #include "things/scene.hpp"
 #include "util/color.hpp"
 
-thread_local std::random_device rd;
-thread_local std::mt19937 gen(rd());
+thread_local std::mt19937 gen;
 thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
 struct single_path_t {
-  const uint8_t  max_depth;
-  const direct_t direct;
+  const uint8_t max_depth;
 
-  inline single_path_t(uint32_t spd, uint32_t max_depth)
+  inline single_path_t(uint32_t max_depth)
     : max_depth(max_depth)
-    , direct(spd)
   {}
 
   template<typename Scene>
-  color_t li(const Scene& scene, const ray_t& ray) const {
-    color_t out;
-    color_t beta(1.0);
-    ray_t   path = ray;
+  inline color_t li(const Scene& scene, segment_t& segment, const bxdf_t::p bxdf) const {
+    color_t r;
 
-    uint8_t depth = 0;
-    while (depth <= max_depth) {
+    auto  l     = (int) (dis(gen) * scene.lights.size());
+    auto& light = scene.lights[l];
 
-      shading_info_t info;
-      if (scene.intersect(path, info)) {
-	out += beta * direct.li(scene, (path.origin - info.p), info);
-	if (depth == 0) {
-	  out += info.emissive;
-	}
-      }
-      else {
-	// path escaped the scene
-	break;
-      }
+    sample_t uv = { dis(gen), dis(gen) };
+    sampled_vector_t sample;
 
-      sample_t sample(dis(gen), dis(gen));
-      sampled_vector_t next;
+    light->sample(segment.p, &uv, &sample, 1);
 
-      // sample the bsdf based on the previous path direction transformed
-      // into tangent space of the hit point
-      const auto pl = info.b.to_local(-path.direction);
-      const auto r  = info.bxdf()->sample(pl, sample, next);
+    segment.wo = segment.wi;
+    segment.wi = sample.sampled - segment.p;
 
-      // transform the sampled direction back to world
-      path = info.ray(info.b.to_world(next.sampled));
-      beta = beta * (r * (abs_dot(path.direction, info.n) / next.pdf));
+    const auto d = segment.wi.length();
 
-      if (depth > 3 && terminate_ray(beta)) {
-      	break;
-      }
-	
-      ++depth;
+    segment.wi.normalize();
+
+    const invertible_base tagent_space(segment.n);
+
+    if (in_same_hemisphere(segment.wi, segment.n) && !scene.occluded(segment, d)) {
+      const auto il = tagent_space.to_local(segment.wi);
+      const auto ol = tagent_space.to_local(segment.wo);
+      const auto s  = il.y/(sample.pdf*d*d);
+
+      r += segment.beta * (light->emit() * bxdf->f(il, ol)).scale(s);
     }
 
-    return out;
+    uv = { dis(gen), dis(gen) };
+    sampled_vector_t next;
+
+    // sample the bsdf based on the previous path direction transformed
+    // into the tangent space of the hit point
+    const auto pl = tagent_space.to_local(-segment.wo);
+    const auto f  = bxdf->sample(pl, uv, next);
+
+    // transform the sampled direction back to world
+    segment.wi   = tagent_space.to_world(next.sampled);
+    segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
+
+    if (segment.depth >= max_depth || (segment.depth > 2 && terminate_ray(segment.beta))) {
+      segment.kill();
+    }
+
+    ++segment.depth;
+
+    return r;
   }
 
   inline bool terminate_ray(color_t& beta) const {

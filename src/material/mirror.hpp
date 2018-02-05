@@ -13,5 +13,5 @@ struct mirror_t : public material_t {
     : k(_k), r(new perfect_reflector_t())
   {}
 
-  bxdf_t::p at(const shading_info_t& info) const;
+  bxdf_t::p at() const;
 };

@@ -26,9 +26,10 @@ struct accelerator_t<triangle_t> {
   static inline bool intersect(
     traversal_ray_t& ray,
     const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris,
-    shading_info_t& info) {
+    float_t& d,
+    segment_t& s) {
 
-    return tris.intersect(ray, info);
+    return tris.intersect(ray, d, s);
   }
 
   static inline uint32_t insert_things(
@@ -38,9 +39,9 @@ struct accelerator_t<triangle_t> {
     storage_t& things) {
 
     triangle_t::p tris[build::MAX_PRIMS_IN_NODE];
-    int i=0;
-    for (auto j=0; j<(end-start); ++j, ++i) {
-      tris[i] = unsorted[primitives[start+j].index];
+
+    for (auto j=0; j<(end-start); ++j) {
+      tris[j] = unsorted[primitives[start+j].index];
     }
 
     things.emplace_back(tris, (end-start));
@@ -112,18 +113,18 @@ struct bvh_t<T>::impl_t {
     build::from(geometry, unsorted, *this);
   }
 
-  bool intersect(const ray_t& ray, shading_info_t& info, bool occlusion_query) {
+  bool intersect(segment_t& segment, float_t& d, bool occlusion_query) {
     static thread_local node_ref_t stack[128];
 
     uint32_t indices[] = {
       0, 8, 16, 24, 32, 40
     };
 
-    if (ray.direction.x < 0.0) { std::swap(indices[0], indices[3]); }
-    if (ray.direction.y < 0.0) { std::swap(indices[1], indices[4]); }
-    if (ray.direction.z < 0.0) { std::swap(indices[2], indices[5]); }
+    if (segment.wi.x < 0.0) { std::swap(indices[0], indices[3]); }
+    if (segment.wi.y < 0.0) { std::swap(indices[1], indices[4]); }
+    if (segment.wi.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-    traversal_ray_t tray(ray, info.d);
+    traversal_ray_t tray(segment, d);
 
     bool hit_anything = false;
 
@@ -134,7 +135,7 @@ struct bvh_t<T>::impl_t {
 
     while (top > 0) {
       auto cur = stack[--top];
-      if (cur.d > info.d) {
+      if (cur.d > d) {
 	continue;
       }
 
@@ -227,7 +228,7 @@ struct bvh_t<T>::impl_t {
       }
 
       if (cur.flags > 0) {
-	if (accelerator_t<T>::intersect(tray, things[cur.offset], info)) {
+	if (accelerator_t<T>::intersect(tray, things[cur.offset], d, segment)) {
 	  hit_anything = true;
 	}
       }
@@ -250,6 +251,8 @@ bvh_t<T>::bvh_t()
 
 template<typename T>
 void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
+  printf("ray=%u\n", sizeof(traversal_ray_t));
+  printf("triangles=%u\n", sizeof(moeller_trumbore_t<8>));
 
   impl->build(things);
 
@@ -262,15 +265,13 @@ void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
 }
 
 template<typename T>
-bool bvh_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
-  return impl->intersect(ray, info, false);
+bool bvh_t<T>::intersect(segment_t& segment, float_t& d) const {
+  return impl->intersect(segment, d, false);
 }
 
 template<typename T>
-bool bvh_t<T>::occluded(const ray_t& ray, float_t d) const {
-  shading_info_t info;
-  info.d = d;
-  return impl->intersect(ray, info, true);
+bool bvh_t<T>::occluded(segment_t& segment, float_t d) const {
+  return impl->intersect(segment, d, true);
 }
 
 template class bvh_t<triangle_t>;

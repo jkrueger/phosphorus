@@ -4,7 +4,7 @@
 template<typename T>
 void scene_t<T>::preprocess() {
   std::vector<triangle_t::p> triangles;
-  for (auto& thing: things) {
+  for (const auto& thing: meshes) {
     thing->tesselate(triangles);
   }
 
@@ -12,15 +12,15 @@ void scene_t<T>::preprocess() {
 }
 
 template<typename T>
-bool scene_t<T>::intersect(const ray_t& ray, shading_info_t& info) const {
+bool scene_t<T>::intersect(segment_t& segment, float_t& d) const {
   stats->rays++;
-  return accel.intersect(ray, info);
+  return accel.intersect(segment, d);
 }
 
 template<typename T>
-bool scene_t<T>::occluded(const ray_t& ray, float_t d) const {
+bool scene_t<T>::occluded(segment_t& segment, float_t d) const {
   stats->rays++;
-  return accel.occluded(ray, d);
+  return accel.occluded(segment, d);
 }
 
 template class scene_t<mesh_bvh_t>;

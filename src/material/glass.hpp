@@ -22,5 +22,5 @@ struct glass_t : public material_t {
     bsdf->add(t);
   }
 
-  bxdf_t::p at(const shading_info_t& info) const;
+  bxdf_t::p at() const;
 };

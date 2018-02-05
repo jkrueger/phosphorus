@@ -1,5 +1,6 @@
 #pragma once
 
+#include "shading.hpp"
 #include "things/triangle.hpp"
 
 #include <memory>
@@ -14,9 +15,9 @@ struct bvh_t {
 
   void build(const std::vector<triangle_t::p>& things);
 
-  bool intersect(const ray_t&, shading_info_t&) const;
+  bool intersect(segment_t&, float& d) const;
 
-  bool occluded(const ray_t& ray, float_t d) const;
+  bool occluded(segment_t& segment, float_t d) const;
 
   std::shared_ptr<impl_t> impl;
 };

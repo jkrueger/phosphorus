@@ -1,4 +1,5 @@
 #include "camera.hpp"
+#include "film.hpp"
 #include "integrator/path.hpp"
 #include "thing.hpp"
 #include "things/mesh.hpp"
@@ -20,21 +21,23 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+const uint32_t film_t::PATCH_SIZE = 16;
+
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
 const color_t L(64.0, 64.0, 64.0);
 
 const material_t::p white(new diffuse_reflector_t({1.0f, 1.0f, 1.0f}));
-const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
-const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 40.0));
-const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
-const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
-const material_t::p purple(new diffuse_reflector_t(color_t::from_rgb(70, 33, 122)));
-const material_t::p jade(new diffuse_reflector_t({0.f, 0.65, 0.41}));
+//const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
+//const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 100.0));
+//const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
+//const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
+//const material_t::p purple(new diffuse_reflector_t(color_t::from_rgb(70, 33, 122)));
+//const material_t::p jade(new diffuse_reflector_t({0.f, 0.65, 0.41}));
 const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}));
-const material_t::p mirror(new mirror_t({1, 1, 1}));
-const material_t::p glass(new glass_t({1, 1, 1}));
+//const material_t::p mirror(new mirror_t({1, 1, 1}));
+//const material_t::p glass(new glass_t({1, 1, 1}));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
@@ -47,9 +50,11 @@ int main(int argc, char** argv) {
 
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);
+  scene.add(white);
+  scene.add(orange);
   scene.add(light0);
-  scene.add(bunny);
   scene.add(floor);
+  scene.add(bunny);
   scene.preprocess();
 
   auto camera = camera_t<single_path_t>::look_at(stats, {3, 3, -3}, {0,0.7,0});
@@ -64,9 +69,9 @@ int main(int argc, char** argv) {
 	usleep(1000000);
 	timeval now;
 	gettimeofday(&now, 0);
-	auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
+	//auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
 	std::cout
-	  << "\rprogess: " << progress
+	  << "\rprogess: " //<< progress
 	  << ", rays/s: " << stats->rays / (now.tv_sec - start.tv_sec)
 	  << std::flush;
       }

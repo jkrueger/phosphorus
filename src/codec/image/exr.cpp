@@ -1,5 +1,6 @@
 #include "exr.hpp"
 #include "camera.hpp"
+#include "film.hpp"
 
 #pragma clang diagnostic ignored "-Wdeprecated-register"
 #include "OpenEXR/ImfRgbaFile.h"

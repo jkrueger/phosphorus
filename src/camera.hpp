@@ -1,9 +1,13 @@
 #pragma once
 
+#include "things/mesh.hpp"
 #include "precision.hpp"
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
+#include "shading.hpp"
 #include "thing.hpp"
+#include "util/algo.hpp"
+#include "util/allocator.hpp"
 #include "util/color.hpp"
 #include "util/stats.hpp"
 
@@ -13,95 +17,8 @@
 #include <string>
 #include <thread>
 
-struct film_t {
-
-  uint32_t width;
-  uint32_t height;
-  uint32_t spd;
-  uint32_t samples;
-
-  struct pixel_t {
-    uint16_t n;
-    color_t  c;
-
-    pixel_t() : n(0) {}
-  };
-
-  struct sample_t {
-    float_t x, y;
-    color_t c;
-  };
-
-  struct area_t {
-    uint32_t x, y, width, height;
-    sample_t* samples;
-  };
-
-  pixel_t* pixels;
-  area_t*  areas;
-
-  uint32_t        num_areas;
-  std::atomic_int area;
-
-  inline film_t(uint32_t w, uint32_t h, uint32_t spd)
-    : width(w), height(h), spd(spd), samples(spd*spd),
-      num_areas((w/16) * (h/16)),
-      area(num_areas) {
-    pixels = new pixel_t[w*h];
-    areas  = new area_t[(w/16)*(h/16)];
-
-    uint32_t hareas = width/16;
-
-    for (uint32_t y=0; y<height/16; ++y) {
-      for (uint32_t x=0; x<hareas; ++x) {
-	area_t& area = areas[y * hareas + x];
-	area.x       = 16 * x;
-	area.y       = 16 * y;
-	area.width   = 16;
-	area.height  = 16;
-	area.samples = new sample_t[16*16*samples];
-      }
-    }
-  }
-
-  inline area_t* next_area() {
-    auto idx = area--;
-    if (idx >= 0) {
-      return &areas[idx];
-    }
-    return nullptr;
-  }
-
-  inline void finalize() {
-    for (int i=0; i<(width/16)*(height/16); ++i) {
-      auto& area = areas[i];
-      for (int y=0; y<area.height; ++y) {
-	for (int x=0; x<area.width; ++x) {
-	  uint32_t index = (y*area.width*samples) + (x*samples);
-	  for (int s=0; s<samples; ++s) {
-	    auto& sample = area.samples[index + s];
-	    auto& pixel  = pixels[(area.y + y) * width + (area.x + x)];
-
-	    pixel.c += sample.c *
-	      (std::max(0.0f, 2.0f - std::abs(sample.x)) *
-	       std::max(0.0f, 2.0f - std::abs(sample.y)));
-	    pixel.n++;
-	  }
-	}
-      }
-    }
-  }
-
-  inline const color_t pixel(uint32_t x, uint32_t y) const {
-    const auto& p = pixels[y*width+x];
-    return p.c * (1.0/p.n);
-  }
-};
-
 namespace lenses {
-
   struct pinhole_t {
-
     ray_t sample(const ray_t& ray) const {
       return ray;
     }
@@ -111,18 +28,16 @@ namespace lenses {
 template<typename Integrator>
 struct camera_t {
   typedef std::shared_ptr<camera_t> p;
-  
+
   vector_t        position;
   orthogonal_base b;
 
   Integrator integrator;
 
-  sample_t* samples;
-
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
-    : position(p), b(d, up), integrator(3, 8), stats(stats)
+    : position(p), b(d, up), integrator(8), stats(stats)
   {}
 
   static inline p look_at(
@@ -138,13 +53,15 @@ struct camera_t {
 
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
+    typedef typename Film::splat_t splat_t;
 
-    samples = new sample_t[film.samples];
+    sample_t* samples = new sample_t[film.samples];
     sampling::strategies::stratified_2d(samples, film.spd);
 
-    float_t ratio = (float_t) film.width / (float_t) film.height;
-    float_t stepx = 1.0/film.width;
-    float_t stepy = 1.0/film.height;
+    const auto num_splats = film.num_splats();
+    const auto ratio = (float_t) film.width / (float_t) film.height;
+    const auto stepx = 1.0f/film.width;
+    const auto stepy = 1.0f/film.height;
 
     // automatically use all cores for now
     uint32_t cores = std::thread::hardware_concurrency();
@@ -154,35 +71,95 @@ struct camera_t {
 
     for (auto t=0; t<cores; ++t) {
       threads[t] = std::thread([&]() {
-	  while (auto area=film.next_area()) {
-	    auto n    = 0;
-	    auto xend = area->x + area->width;
-	    auto yend = area->y + area->height;
-	    for (auto y=area->y; y<yend; ++y) {
-	      for (auto x=area->x; x<xend; ++x) {
-		auto ndcx = (-0.5f + x * stepx) * ratio;
-		auto ndcy = 0.5f - y * stepy;
+	allocator_t allocator(1024*1024*100);
 
-		for (int i=0; i<film.samples; ++i) {
-		  auto sx  = samples[i].u - 0.5f;
-		  auto sy  = samples[i].v - 0.5f;
+	typename Film::patch_t patch;
+        while (film.next_patch(patch)) {
+	  segment_t*     segments = new(allocator) segment_t[num_splats];
+	  by_material_t* deferred = new(allocator) by_material_t[material_t::ids];
+	  splat_t*       splats   = new(allocator) splat_t[num_splats];
 
-		  const auto dir = b.to_world({
-		    sx * stepx + ndcx, sy * stepy + ndcy, 1.0f
-		  }).normalize();
+	  auto segment = segments;
+	  for (auto y=patch.y; y<patch.yend(); ++y) {
+	    for (auto x=patch.x; x<patch.xend(); ++x) {
+	      auto ndcx = (-0.5f + x * stepx) * ratio;
+	      auto ndcy = 0.5f - y * stepy;
 
-		  const ray_t ray(position, dir);
+	      for (int i=0; i<film.samples; ++i, ++segment) {
+		auto sx = samples[i].u - 0.5f;
+		auto sy = samples[i].v - 0.5f;
 
-		  auto &sample = area->samples[n++];
-		  sample.c = integrator.li(scene, ray);
-		  sample.x = sx;
-		  sample.y = sy;
-		}
+		segment->p  = position;
+		segment->wi = b.to_world({
+		  sx * stepx + ndcx,
+		  sy * stepy + ndcy,
+		  1.0f
+                }).normalize();
 	      }
 	    }
-	    stats->areas++;
+          }
+
+	  bool done = false;
+	  while (!done) {
+	  
+	    for (auto i=0; i<material_t::ids; ++i) {
+	      deferred[i].num      = 0;
+	      deferred[i].material = scene.materials[i].get();
+	    }
+
+	    bool segments_alive = false;
+
+	    segment = segments;
+	    for (auto i=0; i<num_splats; ++i, ++segment) {
+	      auto d = std::numeric_limits<float_t>::max();
+	      if (segment->alive() && scene.intersect(*segment, d)) {
+		mesh_t::p mesh = scene.meshes[segment->mesh];
+
+		segment->follow(d);
+		segment->n = mesh->shading_normal(*segment);
+		segment->offset();
+
+		auto  num      = deferred[mesh->material->id].num++;
+		auto& material = deferred[mesh->material->id];
+	      
+		material.segments[num] = segment;
+		material.splats[num]   = i;
+
+		segments_alive = true;
+	      }
+	    }
+
+	    auto material = deferred;
+	    for (auto i=0; i<material_t::ids; ++i, ++material) {
+	      auto bxdf = material->material->at();
+	      for (auto j=0; j<material->num; ++j) {
+		//splats[splat].x = samples[i % film.samples].u - 0.5f;
+		//splats[splat].y = samples[i % film.samples].v - 0.5f;
+		auto segment = material->segments[j];
+		splats[material->splats[j]].c += integrator.li(scene, *segment, bxdf);
+	      }
+	    }
+
+	    done = !segments_alive;
 	  }
-	});
+	  film.apply_splats(patch, splats);
+
+	  // free all memory allocated while rendering this patch, without
+	  // calling any destructors
+	  allocator.reset();
+
+	  // iterate over meshes
+	  //   for all hits on mesh
+	  //     convert light samples to shadow rays
+	  //     trace rays
+	  //     evaluate brdf for all hits
+	  //   convert hits to brdf samples
+	  // convert all brdf samples to path segment rays
+	  // trace all rays
+	  // repeat
+	  // write splats to film
+	}
+      });
     }
 
     for (int t=0; t<cores; ++t) {
@@ -190,7 +167,5 @@ struct camera_t {
 	threads[t].join();
       }
     }
-
-    film.finalize();
   }
 };

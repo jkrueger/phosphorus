@@ -22,5 +22,5 @@ struct plastic_t : public material_t {
     bsdf->add(specular);
   }
 
-  bxdf_t::p at(const shading_info_t&) const;
+  bxdf_t::p at() const;
 };

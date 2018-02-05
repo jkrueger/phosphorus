@@ -1,6 +1,6 @@
 #include "glass.hpp"
 
-bxdf_t::p glass_t::at(const shading_info_t& info) const {
+bxdf_t::p glass_t::at() const {
   auto brdf = dynamic_cast<brdf_t*>(r);
   brdf->k = k;
   auto btdf = dynamic_cast<btdf_t*>(t);
