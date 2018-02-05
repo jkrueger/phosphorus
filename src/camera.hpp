@@ -71,10 +71,11 @@ struct camera_t {
 	shading_info_t info[num_splats];
 	Film::splat_t  splats[num_splats];
 
-        while (auto patch = film.next_patch()) {
+	patch_t patch;
+        while (film.next_patch(patch)) {
 	  auto ray = 0;
-	  for (auto y=patch.ystart; y<patch.yend; ++y) {
-	    for (auto x=patch.xstart; y<patch.xend; ++x) {
+	  for (auto y=patch.y; y<patch.yend(); ++y) {
+	    for (auto x=patch.x; y<patch.xend(); ++x) {
 	      auto ndcx = (-0.5f + x * stepx) * ratio;
 	      auto ndcy = 0.5f - y * stepy;
 
@@ -98,9 +99,11 @@ struct camera_t {
 	    }
 
 	    for (auto i=0; i<num_splats; ++i) {
+	      auto c = integrator.li(scene, primary[i]);
+
 	      splats[i].x = samples[i % film.samples] - 0.5f;
 	      splats[i].y = samples[i % film.samples] - 0.5f;
-	      splats[i].c = integrator.li(scene, primary[i]);
+	      splats[i].c = c;
 	    }
 
 	    film.apply_splats(patch, splats);
