@@ -1,4 +1,5 @@
 #include "camera.hpp"
+#include "film.hpp"
 #include "integrator/path.hpp"
 #include "thing.hpp"
 #include "things/mesh.hpp"
@@ -19,6 +20,8 @@
 #include <dirent.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+const uint32_t film_t::PATCH_SIZE = 16;
 
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
@@ -64,9 +67,9 @@ int main(int argc, char** argv) {
 	usleep(1000000);
 	timeval now;
 	gettimeofday(&now, 0);
-	auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
+	//auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
 	std::cout
-	  << "\rprogess: " << progress
+	  //<< "\rprogess: " << progress
 	  << ", rays/s: " << stats->rays / (now.tv_sec - start.tv_sec)
 	  << std::flush;
       }

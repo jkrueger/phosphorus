@@ -23,26 +23,13 @@ struct single_path_t {
   {}
 
   template<typename Scene>
-  color_t li(const Scene& scene, const ray_t& ray) const {
+  color_t li(const Scene& scene, const shading_info_t& info) const {
     color_t out;
     color_t beta(1.0);
-    ray_t   path = ray;
+    ray_t   path;
 
     uint8_t depth = 0;
     while (depth <= max_depth) {
-
-      shading_info_t info;
-      if (scene.intersect(path, info)) {
-	out += beta * direct.li(scene, (path.origin - info.p), info);
-	if (depth == 0) {
-	  out += info.emissive;
-	}
-      }
-      else {
-	// path escaped the scene
-	break;
-      }
-
       sample_t sample(dis(gen), dis(gen));
       sampled_vector_t next;
 
@@ -55,8 +42,20 @@ struct single_path_t {
       path = info.ray(info.b.to_world(next.sampled));
       beta = beta * (r * (abs_dot(path.direction, info.n) / next.pdf));
 
-      if (depth > 3 && terminate_ray(beta)) {
+      if (depth > 2 && terminate_ray(beta)) {
       	break;
+      }
+
+      shading_info_t path_info;
+      if (scene.intersect(path, path_info)) {
+	out += beta * direct.li(scene, (path.origin - path_info.p), path_info);
+	if (depth == 0) {
+	  out += info.emissive;
+	}
+      }
+      else {
+	// path escaped the scene
+	break;
       }
 	
       ++depth;

@@ -1,5 +1,6 @@
 #include "bmp.hpp"
 #include "camera.hpp"
+#include "film.hpp"
 #include "util/algo.hpp"
 
 #include <algorithm>

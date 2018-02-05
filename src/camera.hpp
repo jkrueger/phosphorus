@@ -1,9 +1,12 @@
 #pragma once
 
+#include "integrator/direct.hpp"
 #include "precision.hpp"
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
+#include "shading.hpp"
 #include "thing.hpp"
+#include "util/algo.hpp"
 #include "util/color.hpp"
 #include "util/stats.hpp"
 
@@ -29,11 +32,12 @@ struct camera_t {
   orthogonal_base b;
 
   Integrator integrator;
+  direct_t   direct;
 
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
-    : position(p), b(d, up), integrator(3, 8), stats(stats)
+    : position(p), b(d, up), integrator(3, 8), direct(3), stats(stats)
   {}
 
   static inline p look_at(
@@ -49,6 +53,7 @@ struct camera_t {
 
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
+    typedef typename Film::splat_t splat_t;
 
     sample_t* samples = new sample_t[film.samples];
     sampling::strategies::stratified_2d(samples, film.spd);
@@ -66,20 +71,22 @@ struct camera_t {
     for (auto t=0; t<cores; ++t) {
       threads[t] = std::thread([&]() {
 	uint32_t num_splats = square(Film::PATCH_SIZE) * film.samples;
+	
+	ray_t    primary[num_splats];
+	splat_t  splats[num_splats];
 
-	ray_t          primary[num_splats];
-	shading_info_t info[num_splats];
-	Film::splat_t  splats[num_splats];
+	shading_info_t* info = new shading_info_t[num_splats];
 
-	patch_t patch;
+	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
 	  auto ray = 0;
+
 	  for (auto y=patch.y; y<patch.yend(); ++y) {
-	    for (auto x=patch.x; y<patch.xend(); ++x) {
+	    for (auto x=patch.x; x<patch.xend(); ++x) {
 	      auto ndcx = (-0.5f + x * stepx) * ratio;
 	      auto ndcy = 0.5f - y * stepy;
 
-	      for (int i=0; i<film.samples; ++i) {
+	      for (int i=0; i<film.samples; ++i, ++ray) {
 		auto sx = samples[i].u - 0.5f;
 		auto sy = samples[i].v - 0.5f;
 
@@ -92,22 +99,30 @@ struct camera_t {
 		  }).normalize();
 	      }
 	    }
+          }
 
-	    for (auto i=0; i<num_splats; ++i) {
-	      // TODO: sort hits by mesh for deferred shading
-	      scene.trace(primary[i], info[i]);
-	    }
-
-	    for (auto i=0; i<num_splats; ++i) {
-	      auto c = integrator.li(scene, primary[i]);
-
-	      splats[i].x = samples[i % film.samples] - 0.5f;
-	      splats[i].y = samples[i % film.samples] - 0.5f;
-	      splats[i].c = c;
-	    }
-
-	    film.apply_splats(patch, splats);
+	  for (auto i=0; i<num_splats; ++i) {
+	    // TODO: sort hits by mesh for deferred shading
+	    scene.intersect(primary[i], info[i]);
 	  }
+
+	  for (auto i=0; i<num_splats; ++i) {
+	    color_t c;
+
+	    if (info[i].d < std::numeric_limits<float>::max()) {
+	      c = direct.li(scene, (position - info[i].p).normalize(), info[i]);
+		// integrator.li(scene, info[i]);
+	      //if (c.y() > 0.1) {
+	      //printf("%f, %f, %f\n", c.r, c.g, c.b);
+	      //}
+	    }
+
+	    splats[i].x = samples[i % film.samples].u - 0.5f;
+	    splats[i].y = samples[i % film.samples].v - 0.5f;
+	    splats[i].c = c;
+	  }
+
+	  film.apply_splats(patch, splats);
 
 	  // iterate over meshes
 	  //   for all hits on mesh
@@ -128,7 +143,5 @@ struct camera_t {
 	threads[t].join();
       }
     }
-
-    film.finalize();
   }
 };
