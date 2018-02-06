@@ -30,7 +30,7 @@ const color_t L(64.0, 64.0, 64.0);
 
 const material_t::p white(new diffuse_reflector_t({1.0f, 1.0f, 1.0f}));
 const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
-const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 40.0));
+const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 100.0));
 const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
 const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
 const material_t::p purple(new diffuse_reflector_t(color_t::from_rgb(70, 33, 122)));
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
   auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(0.2)), L));
   printf("Loading mesh\n");
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, orange));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", white));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", glass));
 
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 	gettimeofday(&now, 0);
 	//auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
 	std::cout
-	  //<< "\rprogess: " << progress
+	  << "\rprogess: " //<< progress
 	  << ", rays/s: " << stats->rays / (now.tv_sec - start.tv_sec)
 	  << std::flush;
       }

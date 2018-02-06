@@ -11,9 +11,12 @@ struct direct_t {
   const uint32_t spd;
   const uint32_t samples;
 
+  sample_t uv[9];
+
   direct_t(uint32_t spd)
     : spd(spd)
     , samples(spd*spd) {
+    sampling::strategies::stratified_2d(uv, spd);
   }
 
   template<typename Scene>
@@ -26,13 +29,11 @@ struct direct_t {
     const auto bxdf = info.bxdf();
 
     if (scene.lights.size() > 0 && bxdf->has_distribution()) {
-      sample_t         uv[samples];
       sampled_vector_t light_samples[samples];
 
       // TODO: importance sampling on light sources
       for (const auto& emitter : scene.lights) {
 	// TODO: replace with precomputed samples
-	sampling::strategies::stratified_2d(uv, spd);
 	emitter->sample(info.p, uv, light_samples, samples); 
 
 	color_t light;

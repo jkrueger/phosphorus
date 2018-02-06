@@ -71,16 +71,18 @@ struct camera_t {
     for (auto t=0; t<cores; ++t) {
       threads[t] = std::thread([&]() {
 	uint32_t num_splats = square(Film::PATCH_SIZE) * film.samples;
+
+	char* buffer = new char[sizeof(shading_info_t) * num_splats];
 	
-	ray_t    primary[num_splats];
-	splat_t  splats[num_splats];
-
-	shading_info_t* info = new shading_info_t[num_splats];
-
 	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
 	  auto ray = 0;
 
+	  ray_t    primary[num_splats];
+	  splat_t  splats[num_splats];
+
+	  shading_info_t* info = new(buffer) shading_info_t[num_splats];
+	  
 	  for (auto y=patch.y; y<patch.yend(); ++y) {
 	    for (auto x=patch.x; x<patch.xend(); ++x) {
 	      auto ndcx = (-0.5f + x * stepx) * ratio;
@@ -110,11 +112,8 @@ struct camera_t {
 	    color_t c;
 
 	    if (info[i].d < std::numeric_limits<float>::max()) {
-	      c = direct.li(scene, (position - info[i].p).normalize(), info[i]);
-		// integrator.li(scene, info[i]);
-	      //if (c.y() > 0.1) {
-	      //printf("%f, %f, %f\n", c.r, c.g, c.b);
-	      //}
+	      c = direct.li(scene, (position - info[i].p).normalize(), info[i]) +
+		integrator.li(scene, primary[i], info[i]);
 	    }
 
 	    splats[i].x = samples[i % film.samples].u - 0.5f;
