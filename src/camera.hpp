@@ -51,6 +51,18 @@ struct camera_t {
     return p(new camera_t(pos, z, up, stats));
   }
 
+  struct by_material_t {
+    uint32_t num;
+    struct {
+      uint32_t        splat;
+      shading_info_t* info;
+    } todo[4096];
+
+    inline by_material_t()
+      : num(0)
+    {}
+  };
+
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
     typedef typename Film::splat_t splat_t;
@@ -73,16 +85,18 @@ struct camera_t {
 	uint32_t num_splats = square(Film::PATCH_SIZE) * film.samples;
 
 	char* buffer = new char[sizeof(shading_info_t) * num_splats];
+
+	by_material_t* by_mat = new by_material_t[material_t::ids];
 	
 	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
 	  auto ray = 0;
 
-	  ray_t    primary[num_splats];
-	  splat_t  splats[num_splats];
+	  ray_t   primary[num_splats];
+	  splat_t splats[num_splats];
 
 	  shading_info_t* info = new(buffer) shading_info_t[num_splats];
-	  
+
 	  for (auto y=patch.y; y<patch.yend(); ++y) {
 	    for (auto x=patch.x; x<patch.xend(); ++x) {
 	      auto ndcx = (-0.5f + x * stepx) * ratio;
@@ -103,22 +117,33 @@ struct camera_t {
 	    }
           }
 
-	  for (auto i=0; i<num_splats; ++i) {
-	    // TODO: sort hits by mesh for deferred shading
-	    scene.intersect(primary[i], info[i]);
+	  for (auto i=0; i<material_t::ids; ++i) {
+	    by_mat[i].num = 0;
 	  }
 
-	  for (auto i=0; i<num_splats; ++i) {
-	    color_t c;
-
-	    if (info[i].d < std::numeric_limits<float>::max()) {
-	      c = direct.li(scene, (position - info[i].p).normalize(), info[i]) +
-		integrator.li(scene, primary[i], info[i]);
+	  for (uint32_t i=0; i<num_splats; ++i) {
+	    // TODO: sort hits by mesh/face for deferred shading
+	    if (scene.intersect(primary[i], info[i])) {
+	      auto id = info[i].material->id;
+	      auto n  = by_mat[id].num++;
+	      by_mat[id].todo[n] = {i, &info[i]};
 	    }
+	  }
 
-	    splats[i].x = samples[i % film.samples].u - 0.5f;
-	    splats[i].y = samples[i % film.samples].v - 0.5f;
-	    splats[i].c = c;
+	  for (auto i=0; i<material_t::ids; ++i) {
+	    const auto& mat  = by_mat[i].todo;
+	    for (auto j=0; j<by_mat[i].num; ++j) {
+	      const auto& t    = mat[j];
+	      const auto& info = t.info;
+	      const auto& wo   = (position - info->p).normalize();
+
+	      color_t d = direct.li(scene, wo, *info);
+	      color_t i = integrator.li(scene, wo, *info);
+
+	      //splats[splat].x = samples[i % film.samples].u - 0.5f;
+	      //splats[splat].y = samples[i % film.samples].v - 0.5f;
+	      splats[t.splat].c = d + i;
+	    }
 	  }
 
 	  film.apply_splats(patch, splats);

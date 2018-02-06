@@ -64,7 +64,6 @@ struct film_t {
   }
 
   inline void apply_splats(const patch_t& patch, const splat_t* splats) {
-    //printf("%d, %d, %d, %d\n", patch.x, patch.y, patch.width, patch.height);
     const splat_t* s = splats;
     for (auto y=0; y<patch.height; ++y) {
       for (auto x=0; x<patch.width; ++x) {
