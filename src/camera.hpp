@@ -75,7 +75,7 @@ struct camera_t {
 
 	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
-	  segment_t* segments = (ray_t*) allocator.allocate(num_splats * sizeof(segment_t));
+	  segment_t* segments = new(allocator) segment_t[num_splats];
 
 	  segment_t* segment = segments;
 	  for (auto y=patch.y; y<patch.yend(); ++segment) {
@@ -88,7 +88,8 @@ struct camera_t {
 		auto sy = samples[i].v - 0.5f;
 
 		// call constructor on new ray
-		new(ray) ray_t (position, b.to_world({
+		segment->p  = position;
+		segment->wi = b.to_world({
 		  sx * stepx + ndcx,
 		  sy * stepy + ndcy,
 		  1.0f
@@ -99,7 +100,7 @@ struct camera_t {
 
 	  segment_t* info = infos;
 	  for (auto i=0; i<num_splats; ++i, ++info) {
-	    // TODO: sort hits by mesh/face for deferred shading
+	    // TODO: sort hits by material/mesh/face for deferred shading
 	    scene.intersect(primary[i], *segment);
 	  }
 

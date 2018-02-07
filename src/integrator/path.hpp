@@ -20,7 +20,7 @@ struct single_path_t {
   {}
 
   template<typename Scene>
-  color_t li(const Scene& scene, const segment_t& s) const {
+  color_t li(const Scene& scene, segment_t& s) const {
     color_t r;
 
     auto  l     = (int) (dis(gen) * scene.lights.size());
@@ -38,7 +38,7 @@ struct single_path_t {
 
     segment.wi.normalize();
 
-    if (in_same_hemisphere(wi, info.n) && !scene.occluded(info.ray(wi), d)) {
+    if (in_same_hemisphere(wi, segment.n) && !scene.occluded(info.ray(wi), d)) {
       const auto il = info.b.to_local(wi);
       const auto ol = info.b.to_local(wo);
       const auto s  = il.y/(sample.pdf*d*d);
