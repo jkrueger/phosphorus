@@ -6,9 +6,11 @@
 struct ray_t {
   vector_t origin;
   vector_t direction;
-  uint64_t padding;
+  float_t  d;
+  uint32_t material;
 
   inline ray_t()
+    : d(std::numeric_limits<float>::max())
   {}
 
   inline ray_t(const ray_t& cpy)
@@ -19,7 +21,7 @@ struct ray_t {
     : origin(o), direction(d)
   {}
 
-  inline vector_t at(float_t d) const {
+  inline vector_t p() const {
     return origin + direction * d;
   }
 };

@@ -23,9 +23,7 @@ struct direct_t {
   inline color_t li(
       const Scene& scene
     , const vector_t& wo
-    , const material_t::p& m 
-    , const shading_info_t* info,
-    , uint32_t num) const {
+    , const shading_info_t& info) const {
     color_t r;
 
     const auto bxdf = info.bxdf();

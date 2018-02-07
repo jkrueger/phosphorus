@@ -1,5 +1,7 @@
 #pragma once
 
+#include "util/algo.hpp"
+
 #include <algorithm>
 
 struct film_t {
@@ -61,6 +63,10 @@ struct film_t {
     c += splat.c; /*
       (std::max(0.0f, 2.0f - std::abs(splat.x)) *
       std::max(0.0f, 2.0f - std::abs(splat.y)));*/
+  }
+
+  inline uint32_t num_splats() const {
+    return square(PATCH_SIZE) * samples;
   }
 
   inline void apply_splats(const patch_t& patch, const splat_t* splats) {

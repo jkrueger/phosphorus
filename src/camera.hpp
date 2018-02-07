@@ -7,6 +7,7 @@
 #include "shading.hpp"
 #include "thing.hpp"
 #include "util/algo.hpp"
+#include "util/allocator.hpp"
 #include "util/color.hpp"
 #include "util/stats.hpp"
 
@@ -32,12 +33,11 @@ struct camera_t {
   orthogonal_base b;
 
   Integrator integrator;
-  direct_t   direct;
 
   stats_t::p stats;
 
   inline camera_t(const vector_t& p, const vector_t& d, const vector_t& up, stats_t::p& stats)
-    : position(p), b(d, up), integrator(3, 8), direct(3), stats(stats)
+    : position(p), b(d, up), integrator(1), direct(3), stats(stats)
   {}
 
   static inline p look_at(
@@ -51,18 +51,6 @@ struct camera_t {
     return p(new camera_t(pos, z, up, stats));
   }
 
-  struct by_material_t {
-    uint32_t num;
-    struct {
-      uint32_t        splat;
-      shading_info_t* info;
-    } todo[4096];
-
-    inline by_material_t()
-      : num(0)
-    {}
-  };
-
   template<typename Film, typename Lens, typename Scene>
   void snapshot(Film& film, const Lens& lens, const Scene& scene) {
     typedef typename Film::splat_t splat_t;
@@ -70,9 +58,10 @@ struct camera_t {
     sample_t* samples = new sample_t[film.samples];
     sampling::strategies::stratified_2d(samples, film.spd);
 
-    float_t ratio = (float_t) film.width / (float_t) film.height;
-    float_t stepx = 1.0/film.width;
-    float_t stepy = 1.0/film.height;
+    const auto num_splats = film.num_splats();
+    const auto ratio = (float_t) film.width / (float_t) film.height;
+    const auto stepx = 1.0f/film.width;
+    const auto stepy = 1.0f/film.height;
 
     // automatically use all cores for now
     uint32_t cores = std::thread::hardware_concurrency();
@@ -82,22 +71,14 @@ struct camera_t {
 
     for (auto t=0; t<cores; ++t) {
       threads[t] = std::thread([&]() {
-	uint32_t num_splats = square(Film::PATCH_SIZE) * film.samples;
+	allocator_t allocator(1024*1024*100);
 
-	char* buffer = new char[sizeof(shading_info_t) * num_splats];
-
-	by_material_t* by_mat = new by_material_t[material_t::ids];
-	
 	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
-	  auto ray = 0;
+	  segment_t* segments = (ray_t*) allocator.allocate(num_splats * sizeof(segment_t));
 
-	  ray_t   primary[num_splats];
-	  splat_t splats[num_splats];
-
-	  shading_info_t* info = new(buffer) shading_info_t[num_splats];
-
-	  for (auto y=patch.y; y<patch.yend(); ++y) {
+	  segment_t* segment = segments;
+	  for (auto y=patch.y; y<patch.yend(); ++segment) {
 	    for (auto x=patch.x; x<patch.xend(); ++x) {
 	      auto ndcx = (-0.5f + x * stepx) * ratio;
 	      auto ndcy = 0.5f - y * stepy;
@@ -106,47 +87,41 @@ struct camera_t {
 		auto sx = samples[i].u - 0.5f;
 		auto sy = samples[i].v - 0.5f;
 
-		primary[ray].origin = position;
-		primary[ray].direction =
-		  b.to_world({
-		    sx * stepx + ndcx,
-		    sy * stepy + ndcy,
-		    1.0f
-		  }).normalize();
+		// call constructor on new ray
+		new(ray) ray_t (position, b.to_world({
+		  sx * stepx + ndcx,
+		  sy * stepy + ndcy,
+		  1.0f
+		}).normalize());
 	      }
 	    }
           }
 
-	  for (auto i=0; i<material_t::ids; ++i) {
-	    by_mat[i].num = 0;
-	  }
-
-	  for (uint32_t i=0; i<num_splats; ++i) {
+	  segment_t* info = infos;
+	  for (auto i=0; i<num_splats; ++i, ++info) {
 	    // TODO: sort hits by mesh/face for deferred shading
-	    if (scene.intersect(primary[i], info[i])) {
-	      auto id = info[i].material->id;
-	      auto n  = by_mat[id].num++;
-	      by_mat[id].todo[n] = {i, &info[i]};
-	    }
+	    scene.intersect(primary[i], *segment);
 	  }
 
-	  for (auto i=0; i<material_t::ids; ++i) {
-	    const auto& mat  = by_mat[i].todo;
-	    for (auto j=0; j<by_mat[i].num; ++j) {
-	      const auto& t    = mat[j];
-	      const auto& info = t.info;
-	      const auto& wo   = (position - info->p).normalize();
+	  splat_t* splats = new(allocator) splat_t[num_splats];
 
-	      color_t d = direct.li(scene, wo, *info);
-	      color_t i = integrator.li(scene, wo, *info);
+	  info = infos;
+	  splat_t* splat = splats;
+	  for (auto i=0; i<num_splats; ++i, ++info, ++splat) {
+	    if (info->d < std::numeric_limits<float>::max()) {
+	      const auto& wo = (position - info->p).normalize();
 
 	      //splats[splat].x = samples[i % film.samples].u - 0.5f;
 	      //splats[splat].y = samples[i % film.samples].v - 0.5f;
-	      splats[t.splat].c = d + i;
+	      splat->c = integrator.li(scene, wo, *info);
 	    }
 	  }
 
 	  film.apply_splats(patch, splats);
+
+	  // free all memory allocated while rendering this patch, without
+	  // calling any destructors
+	  allocator.reset();
 
 	  // iterate over meshes
 	  //   for all hits on mesh
