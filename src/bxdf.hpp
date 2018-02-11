@@ -7,7 +7,6 @@
 #include <stdexcept>
 
 struct bxdf_t {
-  //typedef std::shared_ptr<bxdf_t> p;
   typedef bxdf_t* p;
 
   enum flags_t {

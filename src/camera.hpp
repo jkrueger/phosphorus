@@ -109,7 +109,7 @@ struct camera_t {
 	  while (active.num > 0) {
 	    for (auto i=0; i<material_t::ids; ++i) {
 	      deferred[i].splats.num = 0;
-	      deferred[i].material   = scene.materials[i].get();
+	      deferred[i].material   = scene.materials[i];
 	    }
 
 	    scene.intersect(segments, active);

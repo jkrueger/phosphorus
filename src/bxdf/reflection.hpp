@@ -8,8 +8,8 @@
 
 namespace fresnel {
   struct none_t {
-    inline color_t operator()(float_t a) const {
-      return color_t(1.f, 1.f, 1.f);
+    inline float_t operator()(float_t a) const {
+      return 1.0f;
     }
   };
 
@@ -20,7 +20,7 @@ namespace fresnel {
       : etaI(eI), etaT(eT)
     {}
 
-    inline color_t operator()(float_t a) const {
+    inline float_t operator()(float_t a) const {
       auto eI = etaI, eT = etaT; 
       auto cosTI    = clamp(a, -1.0f, 1.0f);
       bool entering = cosTI > 0;
@@ -48,21 +48,18 @@ namespace fresnel {
 }
 
 namespace bxdf {
-  template<typename Fresnel>
   struct specular_reflection_t : public bxdf_t {
-    Fresnel fresnel;
     color_t k;
 
-    template<typename... Args>
-    specular_reflection_t(const Args& ...args)
-      : bxdf_t(bxdf_t::REFLECTIVE), fresnel(args...)
+    specular_reflection_t(const color_t& k)
+      : bxdf_t(bxdf_t::REFLECTIVE)
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
       out.sampled = vector_t(-v.x, v.y, -v.z);
       out.pdf     = 1.0;
       auto cos_n = v.y;
-      return (k * fresnel(cos_n)) * (1.0 / std::abs(cos_n));
+      return k * (1.0 / std::abs(cos_n));
     }
 
     float_t pdf(const vector_t&, const vector_t&) const {
@@ -70,15 +67,12 @@ namespace bxdf {
     }
   };
 
-  template<typename Fresnel>
   struct specular_transmission_t : public bxdf_t {
-    Fresnel fresnel;
     float_t etaA, etaB;
     color_t k;
 
-    template<typename... Args>
-    specular_transmission_t(float_t eA, float_t eB, const Args& ...args)
-      : bxdf_t(bxdf_t::TRANSMISSIVE), fresnel(eA, eB, args...)
+    specular_transmission_t(const color_t& k, float_t eA, float_t eB)
+      : bxdf_t(bxdf_t::TRANSMISSIVE), k(k), etaA(eA), etaB(eB)
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
@@ -103,9 +97,7 @@ namespace bxdf {
       const vector_t n(0, entering ? 1 : -1, 0);
       out.sampled = eta * -v + (eta * cosTI - cosTT) * n;
 
-      const auto spectrum = k * (color_t(1.0) - fresnel(out.sampled.y));
-
-      return spectrum * (1.0 / std::abs(out.sampled.y));
+      return k * (1.0 / std::abs(out.sampled.y));
     }
 
     float_t pdf(const vector_t&, const vector_t&) const {

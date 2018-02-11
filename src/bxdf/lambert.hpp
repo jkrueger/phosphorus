@@ -10,8 +10,8 @@ namespace bxdf {
 
     color_t k;
 
-    lambert_t()
-      : bxdf_t(bxdf_t::DIFFUSE)
+    lambert_t(const color_t& k)
+      : bxdf_t(bxdf_t::DIFFUSE), k(k)
     {}
 
     color_t f(const vector_t& in, const vector_t& out) const {

@@ -10,8 +10,8 @@ namespace bxdf {
     float_t s;
     color_t k;
 
-    simple_specular_t()
-      : bxdf_t(SPECULAR)
+    simple_specular_t(const color_t& k, float_t s)
+      : bxdf_t(SPECULAR), k(k), s(s)
     {}
 
     inline void set(const color_t& _k, float_t _s) {

@@ -19,6 +19,7 @@ struct film_t {
   struct splat_t {
     float   x, y;
     color_t c;
+    uint32_t padding;
   };
 
   struct patch_t {

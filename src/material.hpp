@@ -1,12 +1,15 @@
 #pragma once
 
+#include "bxdf.hpp"
+#include "util/allocator.hpp"
+
 #include <memory>
 
 struct bxdf_t;
 struct shading_info_t;
 
 struct material_t {
-  typedef std::shared_ptr<material_t> p;
+  typedef material_t* p;
 
   static uint32_t ids;
   
@@ -14,5 +17,9 @@ struct material_t {
 
   material_t();
 
-  virtual bxdf_t* at() const = 0;
+  virtual bxdf_t* at() const
+  { return nullptr; }
+
+  virtual bxdf_t* at(allocator_t& allocator) const
+  { return nullptr; }
 };

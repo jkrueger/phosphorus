@@ -55,6 +55,6 @@ struct direct_t {
 	r += light.scale(1.0/samples);
       }
     }
-    return r * (1.0/scene.lights.size());
+    return r * (1.0f/scene.lights.size());
   }
 };

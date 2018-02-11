@@ -58,8 +58,6 @@ struct single_path_t {
 
     scene.occluded(shadows, active);
 
-    color_t colors[] = {color_t(1,0,0), color_t(0,1,0), color_t(0,0,1)};
-
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i]; 
       auto& shadow  = shadows[index];
