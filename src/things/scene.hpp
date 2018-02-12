@@ -25,7 +25,9 @@ struct scene_t {
 
   bool intersect(segment_t& segment, float_t& d) const;
 
-  bool occluded(segment_t& ray, float_t d) const;
+  void intersect(segment_t* stream, uint32_t num) const;
+
+  bool occluded(segment_t& segment, const vector_t& dir, float_t d) const;
 
   inline void add(const mesh_t::p& thing) {
     meshes.push_back(thing);

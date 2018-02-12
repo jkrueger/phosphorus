@@ -101,18 +101,21 @@ struct camera_t {
 
 	  bool done = false;
 	  while (!done) {
+	    bool segments_alive = false;
 	  
 	    for (auto i=0; i<material_t::ids; ++i) {
 	      deferred[i].num      = 0;
 	      deferred[i].material = scene.materials[i].get();
 	    }
 
-	    bool segments_alive = false;
+	    scene.intersect(segments, num_splats);
 
 	    segment = segments;
 	    for (auto i=0; i<num_splats; ++i, ++segment) {
 	      auto d = std::numeric_limits<float_t>::max();
-	      if (segment->alive() && scene.intersect(*segment, d)) {
+	      if (segment->alive()) {
+		stats->rays++;
+
 		mesh_t::p mesh = scene.meshes[segment->mesh];
 
 		segment->follow(d);

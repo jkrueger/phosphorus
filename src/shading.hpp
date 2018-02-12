@@ -50,7 +50,7 @@ struct segment_t {
 struct by_material_t {
   material_t* material;
 
-  uint32_t   num;
-  segment_t* segments[4096];
-  uint32_t   splats[4096];
+  uint32_t    num;
+  segment_t*  segments[4096];
+  uint32_t    splats[4096];
 };

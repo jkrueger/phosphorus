@@ -31,18 +31,16 @@ struct single_path_t {
 
     light->sample(segment.p, &uv, &sample, 1);
 
-    segment.wo = segment.wi;
-    segment.wi = sample.sampled - segment.p;
-
-    const auto d = segment.wi.length();
-
-    segment.wi.normalize();
-
     const invertible_base tagent_space(segment.n);
 
-    if (in_same_hemisphere(segment.wi, segment.n) && !scene.occluded(segment, d)) {
-      const auto il = tagent_space.to_local(segment.wi);
-      const auto ol = tagent_space.to_local(segment.wo);
+    auto visibility = sample.sampled - segment.p;
+    auto d          = visibility.length();
+
+    visibility.normalize();
+
+    if (in_same_hemisphere(segment.wi, segment.n) && !scene.occluded(segment, visibility, d)) {
+      const auto il = tagent_space.to_local(visibility);
+      const auto ol = tagent_space.to_local(segment.wi);
       const auto s  = il.y/(sample.pdf*d*d);
 
       r += segment.beta * (light->emit() * bxdf->f(il, ol)).scale(s);
@@ -53,10 +51,11 @@ struct single_path_t {
 
     // sample the bsdf based on the previous path direction transformed
     // into the tangent space of the hit point
-    const auto pl = tagent_space.to_local(-segment.wo);
+    const auto pl = tagent_space.to_local(-segment.wi);
     const auto f  = bxdf->sample(pl, uv, next);
 
     // transform the sampled direction back to world
+    segment.wo   = segment.wi;
     segment.wi   = tagent_space.to_world(next.sampled);
     segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
 

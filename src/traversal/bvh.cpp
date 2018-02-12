@@ -10,6 +10,7 @@
 
 #include "bvh/node.hpp"
 #include "bvh/build.hpp"
+#include "bvh/stacks.hpp"
 
 #include <algorithm>
 
@@ -49,22 +50,6 @@ struct accelerator_t<triangle_t> {
     return things.size()-1;
   }
 };
-
-struct node_ref_t {
-  uint32_t offset : 28;
-  uint32_t flags  : 4;
-  float    d;
-};
-
-template<typename Node>
-inline void push(
-  node_ref_t* stack, int32_t& top, const float* const dists,
-  const Node* node, uint32_t idx) {
-  stack[top].offset = node->offset[idx];
-  stack[top].flags  = node->num[idx];
-  stack[top].d      = dists[idx];
-  ++top;
-}
 
 template<typename T>
 struct bvh_t<T>::impl_t {
@@ -113,18 +98,18 @@ struct bvh_t<T>::impl_t {
     build::from(geometry, unsorted, *this);
   }
 
-  bool intersect(segment_t& segment, float_t& d, bool occlusion_query) {
+  bool intersect(segment_t& segment, const vector_t& dir, float_t& d, bool occlusion_query) {
     static thread_local node_ref_t stack[128];
 
     uint32_t indices[] = {
       0, 8, 16, 24, 32, 40
     };
 
-    if (segment.wi.x < 0.0) { std::swap(indices[0], indices[3]); }
-    if (segment.wi.y < 0.0) { std::swap(indices[1], indices[4]); }
-    if (segment.wi.z < 0.0) { std::swap(indices[2], indices[5]); }
+    if (dir.x < 0.0) { std::swap(indices[0], indices[3]); }
+    if (dir.y < 0.0) { std::swap(indices[1], indices[4]); }
+    if (dir.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-    traversal_ray_t tray(segment, d);
+    traversal_ray_t tray(segment.p, dir, d);
 
     bool hit_anything = false;
 
@@ -242,6 +227,75 @@ struct bvh_t<T>::impl_t {
     
     return hit_anything;
   }
+
+  uint32_t intersect(segment_t* stream, uint32_t num) const {
+    stream::lanes_t lanes;
+    stream::task_t  tasks[128];
+
+    traversal_ray_t rays[num];
+
+    auto dmax    = std::numeric_limits<float>::max();
+    auto segment = stream;
+    for (auto i=0; i<num; ++i, ++segment) {
+      if (segment->alive()) {
+	rays[i] = traversal_ray_t(segment->p, segment->wi, dmax);
+	push(lanes, 0, i);
+      }
+    }
+
+    uint32_t ret = lanes.num[0];
+
+    auto zero = float8::load(0.0f);
+
+    auto top = 1;
+    push(tasks, top, 0, lanes.num[0], 0);
+
+    while (top > 0) {
+      auto cur  = tasks[--top];
+      auto node = resolve(cur.offset);
+
+      if (!node->is_leaf(cur.lane)) {
+	auto todo   = pop(lanes, cur.lane, cur.num_rays);
+	auto bounds = bounds::load(node);
+
+	auto length = zero;
+	for (auto i=0; i<cur.num_rays; ++i, ++todo) {
+	  auto& ray = rays[*todo];
+
+	  float8_t dist;
+
+	  auto mask = bounds::intersect_all<8>(
+            ray.origin, ray.ood, ray.d,
+	    bounds, nullptr,
+	    dist);
+
+	  length = float8::add(length, float8::mand(dist, mask));
+
+	  // push ray into lanes for intersected nodes
+	  for (auto i=0; i<8; ++i) {
+	    if (mask & (1 << i) != 0) {
+	      push(lanes, i, ray);
+	    }
+	  }
+	}
+
+	// TODO: sort by accumulated distance
+	uint32_t ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
+	for (auto i=0; i<8; ++i) {
+	  push(tasks, top, node->offset[ids[i]], lanes.num[ids[i]], i);
+	}
+      }
+      else {
+	auto todo = pop(lanes, cur.lane, cur.num_rays);
+
+	for (auto i=0; i<cur.num_rays; ++i, ++todo) {
+	  accelerator_t<T>::intersect(rays[*todo], things[cur.offset], d, segment[*todo]);
+	}
+      }
+    }
+
+    return ret;
+  }
 };
 
 template<typename T>
@@ -266,12 +320,12 @@ void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
 
 template<typename T>
 bool bvh_t<T>::intersect(segment_t& segment, float_t& d) const {
-  return impl->intersect(segment, d, false);
+  return impl->intersect(segment, segment.wi, d, false);
 }
 
 template<typename T>
-bool bvh_t<T>::occluded(segment_t& segment, float_t d) const {
-  return impl->intersect(segment, d, true);
+bool bvh_t<T>::occluded(segment_t& segment, const vector_t& dir, float_t d) const {
+  return impl->intersect(segment, dir, d, true);
 }
 
 template class bvh_t<triangle_t>;

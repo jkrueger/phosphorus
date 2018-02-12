@@ -11,13 +11,13 @@ struct traversal_ray_t {
   const vector8_t ood;
   float8_t        d;
 
-  inline traversal_ray_t(const segment_t& segment, float d)
-    : origin(segment.p)
-    , direction(segment.wi)
+  inline traversal_ray_t(const vector_t& p, const vector_t& dir, float d)
+    : origin(p)
+    , direction(dir)
     , ood(vector_t(
-        1.0f/segment.wi.x,
-        1.0f/segment.wi.y,
-        1.0f/segment.wi.z))
+        1.0f/dir.x,
+        1.0f/dir.y,
+        1.0f/dir.z))
     , d(float8::load(d))
   {}
-} __attribute__((aligned (16)));
+};
