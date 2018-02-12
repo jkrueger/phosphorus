@@ -12,3 +12,5 @@ inline size_t __bscf(size_t& v) {
   v &= v-1;
   return i;
 }
+
+#define __aligned(n) __attribute__((aligned (n)))

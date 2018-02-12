@@ -69,9 +69,9 @@ int main(int argc, char** argv) {
 	usleep(1000000);
 	timeval now;
 	gettimeofday(&now, 0);
-	//auto progress = (((float)stats->areas / (float)film.num_areas) * 100.0f);
+	auto progress = (((float)stats->areas / (float)film.num_patches) * 100.0f);
 	std::cout
-	  << "\rprogess: " //<< progress
+	  << "\rprogess: " << progress
 	  << ", rays/s: " << stats->rays / (now.tv_sec - start.tv_sec)
 	  << std::flush;
       }

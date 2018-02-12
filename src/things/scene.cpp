@@ -18,9 +18,14 @@ bool scene_t<T>::intersect(segment_t& segment, float_t& d) const {
 }
 
 template<typename T>
-bool scene_t<T>::occluded(segment_t& segment, float_t d) const {
+void scene_t<T>::intersect(segment_t* stream, uint32_t num) const {
+  stats->rays += accel.intersect(stream, num);
+}
+
+template<typename T>
+bool scene_t<T>::occluded(segment_t& segment, const vector_t& dir, float_t d) const {
   stats->rays++;
-  return accel.occluded(segment, d);
+  return accel.occluded(segment, dir, d);
 }
 
 template class scene_t<mesh_bvh_t>;

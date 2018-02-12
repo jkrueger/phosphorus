@@ -101,21 +101,21 @@ struct camera_t {
 
 	  bool done = false;
 	  while (!done) {
-	  
+	    bool segments_alive = false;
+
 	    for (auto i=0; i<material_t::ids; ++i) {
 	      deferred[i].num      = 0;
 	      deferred[i].material = scene.materials[i].get();
 	    }
 
-	    bool segments_alive = false;
+	    scene.intersect(segments, num_splats);
 
 	    segment = segments;
 	    for (auto i=0; i<num_splats; ++i, ++segment) {
-	      auto d = std::numeric_limits<float_t>::max();
-	      if (segment->alive() && scene.intersect(*segment, d)) {
+	      if (segment->alive()) {
 		mesh_t::p mesh = scene.meshes[segment->mesh];
 
-		segment->follow(d);
+		segment->follow();
 		segment->n = mesh->shading_normal(*segment);
 		segment->offset();
 
@@ -128,6 +128,8 @@ struct camera_t {
 		segments_alive = true;
 	      }
 	    }
+
+	    color_t cs[] = { color_t(1,0,0), color_t(0,1,0), color_t(0,0,1) };
 
 	    auto material = deferred;
 	    for (auto i=0; i<material_t::ids; ++i, ++material) {
@@ -142,7 +144,9 @@ struct camera_t {
 
 	    done = !segments_alive;
 	  }
+
 	  film.apply_splats(patch, splats);
+	  stats->areas++;
 
 	  // free all memory allocated while rendering this patch, without
 	  // calling any destructors

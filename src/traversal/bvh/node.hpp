@@ -11,6 +11,12 @@ struct mbvh_node_t {
 
   inline mbvh_node_t() {
     memset(bounds, 0, 2*N*3*4);
+
+    for (int i=0; i<N*3; ++i) {
+      bounds[i]       = std::numeric_limits<float>::max();
+      bounds[i+(N*3)] = std::numeric_limits<float>::lowest();
+    }
+
     memset(offset, 0, N*sizeof(uint32_t));
     memset(num, 0, N*sizeof(uint8_t));
   }

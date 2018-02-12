@@ -39,7 +39,7 @@ struct moeller_trumbore_t {
     v0 = vector8_t(vv0);
   };
 
-  inline bool intersect(traversal_ray_t& ray, float& d, segment_t& segment) const {
+  inline bool intersect(traversal_ray_t& ray) const {
     using namespace float8;
     using namespace vector8;
 
@@ -60,19 +60,19 @@ struct moeller_trumbore_t {
 
     auto ds = mul(dot(e1, q), ood);
 
-    const auto xmask = mor(gt(det, peps), lt(det, meps));
+    //const auto xmask = mor(gt(det, peps), lt(det, meps));
     const auto umask = gte(us, zero);
     const auto vmask = mand(gte(vs, zero), lte(add(us, vs), one));
     const auto dmask = mand(gte(ds, zero), lt(ds, ray.d));
 
-    auto mask = movemask(mand(mand(mand(vmask, umask), dmask), xmask));
+    auto mask = movemask(mand(mand(vmask, umask), dmask));
 
     bool ret = false;
 
     if (mask != 0) {
 
       float dists[N];
-      float closest = std::numeric_limits<float>::max();
+      float closest = ray.segment->d;
 
       store(ds, dists);
 
@@ -85,19 +85,19 @@ struct moeller_trumbore_t {
     	}
       }
 
-      if (idx != -1 && closest < d) {
+      if (idx != -1) {
     	float u[N];
     	float v[N];
     	store(us, u);
     	store(vs, v);
 
-    	segment.u    = u[idx];
-    	segment.v    = v[idx];
-    	segment.mesh = meshid[7-idx];
-    	segment.face = faceid[7-idx];
+    	ray.segment->u    = u[idx];
+    	ray.segment->v    = v[idx];
+    	ray.segment->mesh = meshid[7-idx];
+    	ray.segment->face = faceid[7-idx];
 
-    	d     = closest;
-    	ray.d = load(d);
+    	ray.segment->d = closest;
+    	ray.d          = load(closest);
 
     	ret = true;
       }

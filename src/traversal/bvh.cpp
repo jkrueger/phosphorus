@@ -10,6 +10,7 @@
 
 #include "bvh/node.hpp"
 #include "bvh/build.hpp"
+#include "bvh/stacks.hpp"
 
 #include <algorithm>
 
@@ -25,11 +26,9 @@ struct accelerator_t<triangle_t> {
 
   static inline bool intersect(
     traversal_ray_t& ray,
-    const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris,
-    float_t& d,
-    segment_t& s) {
+    const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris) {
 
-    return tris.intersect(ray, d, s);
+    return tris.intersect(ray);
   }
 
   static inline uint32_t insert_things(
@@ -49,22 +48,6 @@ struct accelerator_t<triangle_t> {
     return things.size()-1;
   }
 };
-
-struct node_ref_t {
-  uint32_t offset : 28;
-  uint32_t flags  : 4;
-  float    d;
-};
-
-template<typename Node>
-inline void push(
-  node_ref_t* stack, int32_t& top, const float* const dists,
-  const Node* node, uint32_t idx) {
-  stack[top].offset = node->offset[idx];
-  stack[top].flags  = node->num[idx];
-  stack[top].d      = dists[idx];
-  ++top;
-}
 
 template<typename T>
 struct bvh_t<T>::impl_t {
@@ -113,18 +96,18 @@ struct bvh_t<T>::impl_t {
     build::from(geometry, unsorted, *this);
   }
 
-  bool intersect(segment_t& segment, float_t& d, bool occlusion_query) {
+  bool intersect(segment_t& segment, const vector_t& dir, bool occlusion_query) {
     static thread_local node_ref_t stack[128];
 
     uint32_t indices[] = {
       0, 8, 16, 24, 32, 40
     };
 
-    if (segment.wi.x < 0.0) { std::swap(indices[0], indices[3]); }
-    if (segment.wi.y < 0.0) { std::swap(indices[1], indices[4]); }
-    if (segment.wi.z < 0.0) { std::swap(indices[2], indices[5]); }
+    //if (dir.x < 0.0) { std::swap(indices[0], indices[3]); }
+    //if (dir.y < 0.0) { std::swap(indices[1], indices[4]); }
+    //if (dir.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-    traversal_ray_t tray(segment, d);
+    traversal_ray_t tray(segment.p, dir, &segment);
 
     bool hit_anything = false;
 
@@ -135,18 +118,18 @@ struct bvh_t<T>::impl_t {
 
     while (top > 0) {
       auto cur = stack[--top];
-      if (cur.d > d) {
+      if (cur.d > segment.d) {
 	continue;
       }
 
       while (cur.flags == 0) {
 	auto node = resolve(cur.offset);
+	__aligned(64) auto bounds = bounds::load<8>(node->bounds, indices);
 	
 	float8_t dist;
-	auto mask = bounds::intersect_all<8>(
+	auto mask = float8::movemask(bounds::intersect_all<8>(
           tray.origin, tray.ood, tray.d,
-	  node->bounds, indices,
-	  dist);
+	  bounds, dist));
 
 	if (mask == 0) {
 	  break;
@@ -228,7 +211,7 @@ struct bvh_t<T>::impl_t {
       }
 
       if (cur.flags > 0) {
-	if (accelerator_t<T>::intersect(tray, things[cur.offset], d, segment)) {
+	if (accelerator_t<T>::intersect(tray, things[cur.offset])) {
 	  hit_anything = true;
 	}
       }
@@ -241,6 +224,109 @@ struct bvh_t<T>::impl_t {
     }
     
     return hit_anything;
+  }
+
+  uint32_t intersect(segment_t* stream, uint32_t num) const {
+    static thread_local stream::lanes_t lanes;
+    static thread_local stream::task_t tasks[256];
+
+    static thread_local __attribute__((aligned (64))) traversal_ray_t rays[4096];
+
+    auto dmax    = std::numeric_limits<float>::max();
+    auto segment = stream;
+    auto ray     = rays;
+    for (auto i=0; i<num; ++i, ++segment) {
+      if (segment->alive()) {
+	segment->kill();
+	segment->d = dmax;
+	// avoid copying of data and call constructor directly
+	new(ray) traversal_ray_t(segment->p, segment->wi, segment);
+	push(lanes, 0, i);
+	++ray;
+      }
+    }
+
+    uint32_t ret = lanes.num[0];
+    if (ret == 0) {
+      return ret;
+    }
+
+    auto zero = float8::load(0.0f);
+
+    auto top = 0;
+    push(tasks, top, 0, lanes.num[0], 0, 0);
+
+    while (top > 0) {
+      auto& cur = tasks[--top];
+
+      if (!cur.is_leaf()) {
+	auto node = resolve(cur.offset);
+	auto todo = pop(lanes, cur.lane, cur.num_rays);
+
+	uint32_t indices[] = {
+	  0, 8, 16, 24, 32, 40
+	};
+
+	uint32_t num_active[8] = {[0 ... 7] = 0};
+
+	__aligned(64) auto bounds = bounds::load<8>(node->bounds, indices);
+
+	auto length = zero;
+	auto end    = todo + cur.num_rays;
+	while (todo != end) {
+	  const auto& ray = rays[*todo];
+
+	  float8_t dist;
+
+	  auto hits = bounds::intersect_all<8>(
+            ray.origin, ray.ood, ray.d,
+	    bounds, dist, zero);
+
+	  length = float8::add(length, float8::mand(dist, hits));
+
+	  auto mask = float8::movemask(hits);
+
+	  // push ray into lanes for intersected nodes
+	  while(mask != 0) {
+	    auto x = __bscf(mask);
+	    num_active[x]++;
+	    push(lanes, x, *todo);
+	  }
+
+	  ++todo;
+	}
+	
+	uint32_t ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+	float dists[8];
+	float8::store(length, dists);
+
+	// TODO: efficiently sort nodes
+	//std::sort(ids, ids+8, [dists](size_t l, size_t r){
+	//    return dists[l] < dists[r];
+	//});
+	
+	for (auto i=0; i<8; ++i) {
+	  auto num = num_active[ids[i]];
+	  if (num > 0) {
+	    push(tasks, top, node->offset[ids[i]], num, ids[i], node->is_leaf(ids[i]) ? 1 : 0);
+	  }
+	}
+      }
+      else {
+	auto todo = pop(lanes, cur.lane, cur.num_rays);
+	auto end  = todo + cur.num_rays;
+	do {
+	  if (accelerator_t<T>::intersect(
+	        rays[*todo]
+	      , things[cur.offset])) {
+	    rays[*todo].segment->revive();
+	  }
+	} while(++todo != end);
+      }
+    }
+
+    return ret;
   }
 };
 
@@ -266,12 +352,24 @@ void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
 
 template<typename T>
 bool bvh_t<T>::intersect(segment_t& segment, float_t& d) const {
-  return impl->intersect(segment, d, false);
+  segment.d = d;
+  auto ret = impl->intersect(segment, segment.wi, false);
+  d = segment.d;
+  return ret;
 }
 
 template<typename T>
-bool bvh_t<T>::occluded(segment_t& segment, float_t d) const {
-  return impl->intersect(segment, d, true);
+uint32_t bvh_t<T>::intersect(segment_t* stream, uint32_t num) const {
+  if (num == 0) {
+    return 0;
+  }
+  return impl->intersect(stream, num);
+}
+
+template<typename T>
+bool bvh_t<T>::occluded(segment_t& segment, const vector_t& dir, float_t d) const {
+  segment.d = d;
+  return impl->intersect(segment, dir, true);
 }
 
 template class bvh_t<triangle_t>;
