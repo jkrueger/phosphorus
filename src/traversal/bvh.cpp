@@ -27,10 +27,9 @@ struct accelerator_t<triangle_t> {
   static inline bool intersect(
     traversal_ray_t& ray,
     const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris,
-    float_t& d,
     segment_t& s) {
 
-    return tris.intersect(ray, d, s);
+    return tris.intersect(ray, s);
   }
 
   static inline uint32_t insert_things(
@@ -99,17 +98,17 @@ struct bvh_t<T>::impl_t {
   }
 
   bool intersect(segment_t& segment, const vector_t& dir, float_t& d, bool occlusion_query) {
-    static thread_local node_ref_t stack[128];
+    static thread_local node_ref_t stack[256];
 
     uint32_t indices[] = {
       0, 8, 16, 24, 32, 40
     };
 
-    if (dir.x < 0.0) { std::swap(indices[0], indices[3]); }
-    if (dir.y < 0.0) { std::swap(indices[1], indices[4]); }
-    if (dir.z < 0.0) { std::swap(indices[2], indices[5]); }
+    //if (dir.x < 0.0) { std::swap(indices[0], indices[3]); }
+    //if (dir.y < 0.0) { std::swap(indices[1], indices[4]); }
+    //if (dir.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-    traversal_ray_t tray(segment.p, dir, d);
+    traversal_ray_t tray(segment.p, dir, d, &segment);
 
     bool hit_anything = false;
 
@@ -126,12 +125,12 @@ struct bvh_t<T>::impl_t {
 
       while (cur.flags == 0) {
 	auto node = resolve(cur.offset);
+	__attribute__((aligned (64))) auto bounds = bounds::load<8>(node->bounds, indices);
 	
 	float8_t dist;
-	auto mask = bounds::intersect_all<8>(
+	auto mask = float8::movemask(bounds::intersect_all<8>(
           tray.origin, tray.ood, tray.d,
-	  node->bounds, indices,
-	  dist);
+	  bounds, dist));
 
 	if (mask == 0) {
 	  break;
@@ -213,7 +212,7 @@ struct bvh_t<T>::impl_t {
       }
 
       if (cur.flags > 0) {
-	if (accelerator_t<T>::intersect(tray, things[cur.offset], d, segment)) {
+	if (accelerator_t<T>::intersect(tray, things[cur.offset], segment)) {
 	  hit_anything = true;
 	}
       }
@@ -229,34 +228,50 @@ struct bvh_t<T>::impl_t {
   }
 
   uint32_t intersect(segment_t* stream, uint32_t num) const {
-    stream::lanes_t lanes;
-    stream::task_t  tasks[128];
+    stream::lanes_t* lanes = new stream::lanes_t();
+    stream::task_t*  tasks = new stream::task_t[256];
 
-    traversal_ray_t rays[num];
+    __attribute__((aligned (64))) traversal_ray_t* rays = new traversal_ray_t[num];
 
     auto dmax    = std::numeric_limits<float>::max();
     auto segment = stream;
     for (auto i=0; i<num; ++i, ++segment) {
       if (segment->alive()) {
-	rays[i] = traversal_ray_t(segment->p, segment->wi, dmax);
-	push(lanes, 0, i);
+	segment->kill();
+	segment->d = dmax;
+	rays[i] = traversal_ray_t(segment->p, segment->wi, dmax, segment);
+	push(*lanes, 0, i);
       }
     }
 
-    uint32_t ret = lanes.num[0];
+    uint32_t ret = lanes->num[0];
+    if (ret == 0) {
+      return ret;
+    }
 
     auto zero = float8::load(0.0f);
 
-    auto top = 1;
-    push(tasks, top, 0, lanes.num[0], 0);
+    auto top = 0;
+    push(tasks, top, 0, lanes->num[0], 0, 0);
 
     while (top > 0) {
-      auto cur  = tasks[--top];
-      auto node = resolve(cur.offset);
+      auto& cur = tasks[--top];
 
-      if (!node->is_leaf(cur.lane)) {
-	auto todo   = pop(lanes, cur.lane, cur.num_rays);
-	auto bounds = bounds::load(node);
+      if (!cur.is_leaf()) {
+	auto node = resolve(cur.offset);
+	auto todo = pop(*lanes, cur.lane, cur.num_rays);
+
+	uint32_t indices[] = {
+	  0, 8, 16, 24, 32, 40
+	};
+
+	uint32_t num_active[8] = {[0 ... 7] = 0 };
+
+	//if (rays[*todo].segment->wi.x < 0.0) { std::swap(indices[0], indices[3]); }
+	//if (rays[*todo].segment->wi.y < 0.0) { std::swap(indices[1], indices[4]); }
+	//if (rays[*todo].segment->wi.z < 0.0) { std::swap(indices[2], indices[5]); }
+
+	__attribute__((aligned (64))) auto bounds = bounds::load<8>(node->bounds, indices);
 
 	auto length = zero;
 	for (auto i=0; i<cur.num_rays; ++i, ++todo) {
@@ -264,35 +279,53 @@ struct bvh_t<T>::impl_t {
 
 	  float8_t dist;
 
-	  auto mask = bounds::intersect_all<8>(
+	  auto hits = bounds::intersect_all<8>(
             ray.origin, ray.ood, ray.d,
-	    bounds, nullptr,
-	    dist);
+	    bounds, dist);
 
-	  length = float8::add(length, float8::mand(dist, mask));
+	  length = float8::add(length, float8::mand(dist, hits));
+
+	  auto mask = float8::movemask(hits);
 
 	  // push ray into lanes for intersected nodes
-	  for (auto i=0; i<8; ++i) {
-	    if (mask & (1 << i) != 0) {
-	      push(lanes, i, ray);
-	    }
+	  while(mask != 0) {
+	    auto x = __bscf(mask);
+	    num_active[x]++;
+	    push(*lanes, x, *todo);
 	  }
 	}
-
+	
 	// TODO: sort by accumulated distance
 	uint32_t ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
 	for (auto i=0; i<8; ++i) {
-	  push(tasks, top, node->offset[ids[i]], lanes.num[ids[i]], i);
+	  auto num = num_active[ids[i]];
+	  if (num > 0) {
+	    if (node->offset[ids[i]]) {
+	      push(tasks, top, node->offset[ids[i]], num, i, node->is_leaf(i) ? 1 : 0);
+	    }
+	    else {
+	      printf("empty stream node\n");
+	      abort();
+	    }
+	  }
 	}
       }
       else {
-	auto todo = pop(lanes, cur.lane, cur.num_rays);
-
+	auto todo = pop(*lanes, cur.lane, cur.num_rays);
 	for (auto i=0; i<cur.num_rays; ++i, ++todo) {
-	  accelerator_t<T>::intersect(rays[*todo], things[cur.offset], d, segment[*todo]);
+	  if (accelerator_t<T>::intersect(
+	        rays[*todo]
+	      , things[cur.offset]
+	      , *rays[*todo].segment)) {
+	    rays[*todo].segment->revive();
+	  }
 	}
       }
     }
+
+    delete lanes;
+    delete[] tasks;
+    delete[] rays;
 
     return ret;
   }
@@ -324,7 +357,16 @@ bool bvh_t<T>::intersect(segment_t& segment, float_t& d) const {
 }
 
 template<typename T>
+uint32_t bvh_t<T>::intersect(segment_t* stream, uint32_t num) const {
+  if (num == 0) {
+    return 0;
+  }
+  return impl->intersect(stream, num);
+}
+
+template<typename T>
 bool bvh_t<T>::occluded(segment_t& segment, const vector_t& dir, float_t d) const {
+  segment.d = d;
   return impl->intersect(segment, dir, d, true);
 }
 

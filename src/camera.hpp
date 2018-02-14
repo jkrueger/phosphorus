@@ -64,7 +64,7 @@ struct camera_t {
     const auto stepy = 1.0f/film.height;
 
     // automatically use all cores for now
-    uint32_t cores = std::thread::hardware_concurrency();
+    uint32_t cores = 1;//std::thread::hardware_concurrency();
     printf("Using %d threads for rendering\n", cores);
 
     std::thread threads[cores];
@@ -102,7 +102,7 @@ struct camera_t {
 	  bool done = false;
 	  while (!done) {
 	    bool segments_alive = false;
-	  
+
 	    for (auto i=0; i<material_t::ids; ++i) {
 	      deferred[i].num      = 0;
 	      deferred[i].material = scene.materials[i].get();
@@ -112,13 +112,10 @@ struct camera_t {
 
 	    segment = segments;
 	    for (auto i=0; i<num_splats; ++i, ++segment) {
-	      auto d = std::numeric_limits<float_t>::max();
 	      if (segment->alive()) {
-		stats->rays++;
-
 		mesh_t::p mesh = scene.meshes[segment->mesh];
 
-		segment->follow(d);
+		segment->follow();
 		segment->n = mesh->shading_normal(*segment);
 		segment->offset();
 
@@ -145,7 +142,9 @@ struct camera_t {
 
 	    done = !segments_alive;
 	  }
+
 	  film.apply_splats(patch, splats);
+	  stats->areas++;
 
 	  // free all memory allocated while rendering this patch, without
 	  // calling any destructors

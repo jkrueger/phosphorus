@@ -28,6 +28,11 @@ struct vector8_t {
   inline vector8_t(const float8_t& x, const float8_t& y, const float8_t& z)
     : x(x), y(y), z(z)
   {}
+
+  inline vector8_t& operator=(const vector8_t& r) {
+    x = r.x; y = r.y; z =r.z;
+    return *this;
+  }
 };
 
 namespace vector8 {

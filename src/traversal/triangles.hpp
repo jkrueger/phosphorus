@@ -39,7 +39,7 @@ struct moeller_trumbore_t {
     v0 = vector8_t(vv0);
   };
 
-  inline bool intersect(traversal_ray_t& ray, float& d, segment_t& segment) const {
+  inline bool intersect(traversal_ray_t& ray, segment_t& segment) const {
     using namespace float8;
     using namespace vector8;
 
@@ -85,7 +85,7 @@ struct moeller_trumbore_t {
     	}
       }
 
-      if (idx != -1 && closest < d) {
+      if (idx != -1 && closest < segment.d) {
     	float u[N];
     	float v[N];
     	store(us, u);
@@ -96,8 +96,8 @@ struct moeller_trumbore_t {
     	segment.mesh = meshid[7-idx];
     	segment.face = faceid[7-idx];
 
-    	d     = closest;
-    	ray.d = load(d);
+    	segment.d = closest;
+    	ray.d     = load(segment.d);
 
     	ret = true;
       }

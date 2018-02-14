@@ -98,6 +98,10 @@ namespace float8 {
     return _mm256_and_ps(l, r);
   }
 
+  inline float8_t ATTRS andnot(const float8_t l, const float8_t& r) {
+    return _mm256_andnot_ps(l, r);
+  }
+
   inline size_t ATTRS movemask(const float8_t& mask) {
     return _mm256_movemask_ps(mask);
   }

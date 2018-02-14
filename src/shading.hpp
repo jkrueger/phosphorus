@@ -14,6 +14,7 @@ struct segment_t {
   vector_t wo;
   vector_t n;
   color_t  beta;
+  float_t  d;
   uint32_t flags : 8, depth : 8, material: 16;
   float_t  u;
   float_t  v;
@@ -22,6 +23,7 @@ struct segment_t {
 
   inline segment_t()
     : beta(1.0f)
+    , d(std::numeric_limits<float>::max())
     , flags(1)
     , depth(0)
   {}
@@ -30,12 +32,17 @@ struct segment_t {
     flags = 0;
   }
 
+  inline void revive() {
+    flags = 1;
+  }
+
   inline bool alive() const {
     return flags;
   }
 
-  inline void follow(float_t d) {
+  inline void follow() {
     p = p + d * wi;
+    d = std::numeric_limits<float>::max();
   }
 
   inline void offset() {

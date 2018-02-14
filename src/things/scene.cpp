@@ -19,7 +19,7 @@ bool scene_t<T>::intersect(segment_t& segment, float_t& d) const {
 
 template<typename T>
 void scene_t<T>::intersect(segment_t* stream, uint32_t num) const {
-  accel.intersect(stream, num);
+  stats->rays += accel.intersect(stream, num);
 }
 
 template<typename T>

@@ -6,12 +6,23 @@
 #include "math/simd/vector4.hpp"
 
 struct traversal_ray_t {
-  const vector8_t origin;
-  const vector8_t direction;
-  const vector8_t ood;
-  float8_t        d;
+  vector8_t  origin;
+  vector8_t  direction;
+  vector8_t  ood;
+  float8_t   d;
+  segment_t* segment;
 
-  inline traversal_ray_t(const vector_t& p, const vector_t& dir, float d)
+  inline traversal_ray_t()
+  {}
+
+  inline traversal_ray_t(const traversal_ray_t& cpy)
+    : origin(cpy.origin)
+    , direction(cpy.direction)
+    , ood(cpy.ood)
+    , d(cpy.d)
+  {}
+
+  inline traversal_ray_t(const vector_t& p, const vector_t& dir, float d, segment_t* segment)
     : origin(p)
     , direction(dir)
     , ood(vector_t(
@@ -19,5 +30,6 @@ struct traversal_ray_t {
         1.0f/dir.y,
         1.0f/dir.z))
     , d(float8::load(d))
+    , segment(segment) 
   {}
 };

@@ -32,7 +32,7 @@ struct bvh_t {
    * Find intersections for a stream of segments
    *
    */
-  void intersect(segment_t* stream, uint32_t num) const;
+  uint32_t intersect(segment_t* stream, uint32_t num) const;
 
   /**
    * Determine if the surface point described by segment is visibly from
