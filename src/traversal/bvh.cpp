@@ -280,7 +280,7 @@ struct bvh_t<T>::impl_t {
 
 	  auto hits = bounds::intersect_all<8>(
             ray.origin, ray.ood, ray.d,
-	    bounds, dist, zero);
+	    bounds, dist);
 
 	  length = float8::add(length, float8::mand(dist, hits));
 
@@ -296,21 +296,36 @@ struct bvh_t<T>::impl_t {
 	  ++todo;
 	}
 	
-	uint32_t ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
+	uint32_t ids[8];
 
 	float dists[8];
 	float8::store(length, dists);
-
-	// TODO: efficiently sort nodes
-	//std::sort(ids, ids+8, [dists](size_t l, size_t r){
-	//    return dists[l] < dists[r];
-	//});
 	
+	// TODO: collect stats on lane utilization to see if efficiently sorting
+	// for smaller 'n' makes sense
+	
+	auto n=0;
 	for (auto i=0; i<8; ++i) {
-	  auto num = num_active[ids[i]];
+	  auto num = num_active[i];
 	  if (num > 0) {
-	    push(tasks, top, node->offset[ids[i]], num, ids[i], node->is_leaf(ids[i]) ? 1 : 0);
+	    auto d = dists[i];
+	    ids[n] = i;
+	    for(auto j=n; j>0; --j) {
+	      if (d < dists[ids[j]]) {
+		auto& a = ids[j], &b = ids[j-1];
+		a = a ^ b;
+		b = a ^ b;
+		a = a ^ b;
+	      }
+	    }
+	    ++n;
 	  }
+	}
+
+	for (auto i=0; i<n; ++i) {
+	  auto num = num_active[ids[i]];
+	  auto is_leaf = node->is_leaf(ids[i]) ? 1 : 0;
+	  push(tasks, top, node->offset[ids[i]], num, ids[i], is_leaf);
 	}
       }
       else {

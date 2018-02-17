@@ -29,7 +29,7 @@ const uint32_t HEIGHT=720;
 const color_t L(64.0, 64.0, 64.0);
 
 const material_t::p white(new diffuse_reflector_t({1.0f, 1.0f, 1.0f}));
-//const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
+const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}));
 //const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 100.0));
 //const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
 //const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
   scene_t<mesh_bvh_t> scene(stats);
   scene.add(white);
   scene.add(orange);
+  scene.add(teal);
   scene.add(light0);
   scene.add(floor);
   scene.add(bunny);
