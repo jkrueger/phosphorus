@@ -235,17 +235,15 @@ struct bvh_t<T>::impl_t {
     static thread_local __attribute__((aligned (64))) traversal_ray_t<Stream> rays[4096];
 
     auto ray = rays;
-    for (auto i=0; i<active.num; ++i) {
+    for (auto i=0; i<active.num; ++i, ++ray) {
       auto  index   = active.segment[i];
       auto& segment = stream[index];
       if (!segment.masked()) {
 	segment.kill();
 	// avoid copying of data and call constructor directly
 	new(ray) traversal_ray_t<Stream>(segment.p, segment.wi, &segment);
-
 	push(lanes, 0, i);
       }
-      ++ray;
     }
 
     // all rays were masked
@@ -278,10 +276,10 @@ struct bvh_t<T>::impl_t {
 	while (todo != end) {
 	  const auto& ray = rays[*todo];
 
-	  //if (Stream::stop_on_first_hit && ray.segment->alive()) {
-	  //  ++todo;
-	  //  continue;
-	  //}
+	  if (Stream::stop_on_first_hit && ray.segment->alive()) {
+	    ++todo;
+	    continue;
+	  }
 
 	  float8_t dist;
 

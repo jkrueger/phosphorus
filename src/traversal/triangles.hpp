@@ -61,12 +61,12 @@ struct moeller_trumbore_t {
 
     auto ds = mul(dot(e1, q), ood);
 
-    //const auto xmask = mor(gt(det, peps), lt(det, meps));
+    const auto xmask = mor(gt(det, peps), lt(det, meps));
     const auto umask = gte(us, zero);
     const auto vmask = mand(gte(vs, zero), lte(add(us, vs), one));
     const auto dmask = mand(gte(ds, zero), lt(ds, ray.d));
 
-    auto mask = movemask(mand(mand(vmask, umask), dmask));
+    auto mask = movemask(mand(mand(mand(vmask, umask), dmask), xmask));
 
     bool ret = false;
 

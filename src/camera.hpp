@@ -122,7 +122,6 @@ struct camera_t {
 
 		segment.follow();
 		segment.n = mesh->shading_normal(segment);
-		segment.offset();
 
 		auto& material = deferred[mesh->material->id];
 		material.splats.segment[material.splats.num++] = index;
@@ -130,11 +129,13 @@ struct camera_t {
 	    }
 
 	    active.num = 0;
-	    
+
 	    auto material = deferred;
 	    for (auto i=0; i<material_t::ids; ++i, ++material) {
-	      auto bxdf = material->material->at();
-	      integrator.li(scene, segments, material->splats, active, splats, bxdf);
+	      if (material->splats.num > 0) {
+		auto bxdf = material->material->at();
+		integrator.li(scene, segments, material->splats, active, splats, bxdf);
+	      }
 	    }
 	  }
 

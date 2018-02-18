@@ -51,8 +51,8 @@ int main(int argc, char** argv) {
   printf("preprocessing\n");
   scene_t<mesh_bvh_t> scene(stats);
   scene.add(white);
-  scene.add(orange);
   scene.add(teal);
+  scene.add(orange);
   scene.add(light0);
   scene.add(floor);
   scene.add(bunny);

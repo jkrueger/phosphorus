@@ -10,7 +10,7 @@
 
 struct segment_t {
   static const bool shade = true;
-  static const bool stop_on_first_hit = true;
+  static const bool stop_on_first_hit = false;
 
   vector_t p; // 12
   vector_t wi; // 24
@@ -53,14 +53,6 @@ struct segment_t {
     d = std::numeric_limits<float>::max();
   }
 
-  inline void offset() {
-    float_t offset = 0.0001f;
-    if (!in_same_hemisphere(wi, n)) {
-      offset = -offset;
-    }
-    p = p + n * offset;
-  }
-
   inline void shading(float u, float v, uint32_t m, uint32_t f) {
     u    = u;
     v    = v;
@@ -92,11 +84,11 @@ struct occlusion_query_t {
   }
 
   inline void kill() {
-    flags = 0;
+    flags &= ~1;
   }
 
   inline void revive() {
-    flags = 1;
+    flags |= 1;
   }
 
   inline bool alive() const {
@@ -104,11 +96,11 @@ struct occlusion_query_t {
   }
 
   inline bool masked() const {
-    return false;//(flags & 2) == 2;
+    return (flags & 2) == 2;
   }
 
   inline bool occluded() const {
-    return alive(); //&& !masked();
+    return alive() | masked();
   }
 
   inline void shading(float u, float v, uint32_t m, uint32_t f)
@@ -124,3 +116,15 @@ struct by_material_t {
   material_t* material;
   active_t    splats;
 };
+
+namespace shading {
+
+  template<typename T>
+  inline void offset(T& t, const vector_t& n) {
+    float_t offset = 0.0001f;
+    if (!in_same_hemisphere(t.wi, n)) {
+      offset = -offset;
+    }
+    t.p = t.p + n * offset;
+  }
+}
