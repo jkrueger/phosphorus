@@ -9,6 +9,9 @@
 #include <limits>
 
 struct segment_t {
+  static const bool shade = true;
+  static const bool stop_on_first_hit = true;
+
   vector_t p; // 12
   vector_t wi; // 24
   vector_t n;  // 32
@@ -41,6 +44,10 @@ struct segment_t {
     return flags;
   }
 
+  inline constexpr bool masked() const {
+    return false;
+  }
+
   inline void follow() {
     p = p + d * wi;
     d = std::numeric_limits<float>::max();
@@ -53,12 +60,67 @@ struct segment_t {
     }
     p = p + n * offset;
   }
+
+  inline void shading(float u, float v, uint32_t m, uint32_t f) {
+    u    = u;
+    v    = v;
+    mesh = m;
+    face = f;
+  }
+};
+
+struct occlusion_query_t {
+  static const bool shade = false;
+  static const bool stop_on_first_hit = true;
+  
+  vector_t p;     // 12
+  vector_t wi;    // 24
+  float    d;     // 28
+  uint32_t flags; // 32
+  color_t  e;     // 44
+  float    pdf;   // 48
+
+  char padding[16]; // pad to 64 bytes
+
+  occlusion_query_t()
+    : d(std::numeric_limits<float>::max())
+    , flags(0)
+  {}
+
+  inline void mask() {
+    flags |= 2;
+  }
+
+  inline void kill() {
+    flags = 0;
+  }
+
+  inline void revive() {
+    flags = 1;
+  }
+
+  inline bool alive() const {
+    return (flags & 1) == 1;
+  }
+
+  inline bool masked() const {
+    return false;//(flags & 2) == 2;
+  }
+
+  inline bool occluded() const {
+    return alive(); //&& !masked();
+  }
+
+  inline void shading(float u, float v, uint32_t m, uint32_t f)
+  {}
+};
+
+struct active_t {
+  uint16_t num;
+  uint16_t segment[4096];
 };
 
 struct by_material_t {
   material_t* material;
-
-  uint32_t    num;
-  segment_t*  segments[4096];
-  uint32_t    splats[4096];
+  active_t    splats;
 };

@@ -32,7 +32,7 @@ struct bvh_t {
    * Find intersections for a stream of segments
    *
    */
-  uint32_t intersect(segment_t* stream, uint32_t num) const;
+  void intersect(segment_t* stream, const active_t& active) const;
 
   /**
    * Determine if the surface point described by segment is visibly from
@@ -40,6 +40,12 @@ struct bvh_t {
    *
    */
   bool occluded(segment_t& segment, const vector_t& dir, float_t d) const;
+
+  /**
+   * Determine if two points are mutually visible for a stream of point pairs
+   *
+   */
+  void occluded(occlusion_query_t* stream, const active_t& active) const;
 };
 
 typedef bvh_t<triangle_t> mesh_bvh_t;

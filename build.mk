@@ -24,6 +24,6 @@ rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src -fno-inline -m
 else
 rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -I/usr/local/include -O3 -march=native -flto -funroll-loops
 endif
-rayray_ld_flags_$(d)    := -L/usr/local/lib -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply -flto -Wl,-stack_size,1000000
+rayray_ld_flags_$(d)    := -L/usr/local/lib -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply -flto -Wl,-stack_size,2000000
 
 include $(TOP)/build/footer.mk

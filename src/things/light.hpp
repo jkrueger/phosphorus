@@ -27,7 +27,7 @@ struct light_t {
 
     surface->sample(p, samples, out, n);
 
-    orthogonal_base base((p - position).normalize());
+    orthogonal_base_t base((p - position).normalize());
 
     for (auto i=0; i<n; ++i) {
       out[i].sampled = base.to_world(out[i].sampled) + position;

@@ -5,12 +5,13 @@
 #include "math/simd/float8.hpp"
 #include "math/simd/vector4.hpp"
 
+template<typename T>
 struct traversal_ray_t {
   vector8_t  origin;
   vector8_t  direction;
   vector8_t  ood;
   float8_t   d;
-  segment_t* segment;
+  T*         segment;
 
   inline traversal_ray_t()
   {}
@@ -22,7 +23,7 @@ struct traversal_ray_t {
     , d(cpy.d)
   {}
 
-  inline traversal_ray_t(const vector_t& p, const vector_t& dir, segment_t* segment)
+  inline traversal_ray_t(const vector_t& p, const vector_t& dir, T* segment)
     : origin(p)
     , direction(dir)
     , ood(vector_t(

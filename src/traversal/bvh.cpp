@@ -24,10 +24,11 @@ template<>
 struct accelerator_t<triangle_t> {
   typedef std::vector<moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>> storage_t;
 
+  template<typename U>
   static inline bool intersect(
-    traversal_ray_t& ray,
-    const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris) {
-
+      traversal_ray_t<U>& ray
+    , const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris)
+  {
     return tris.intersect(ray);
   }
 
@@ -107,7 +108,7 @@ struct bvh_t<T>::impl_t {
     //if (dir.y < 0.0) { std::swap(indices[1], indices[4]); }
     //if (dir.z < 0.0) { std::swap(indices[2], indices[5]); }
 
-    traversal_ray_t tray(segment.p, dir, &segment);
+    traversal_ray_t<segment_t> tray(segment.p, dir, &segment);
 
     bool hit_anything = false;
 
@@ -226,29 +227,30 @@ struct bvh_t<T>::impl_t {
     return hit_anything;
   }
 
-  uint32_t intersect(segment_t* stream, uint32_t num) const {
+  template<typename Stream>
+  void intersect(Stream* stream, const active_t& active) const {
     static thread_local stream::lanes_t lanes;
-    static thread_local stream::task_t tasks[256];
+    static thread_local stream::task_t  tasks[256];
 
-    static thread_local __attribute__((aligned (64))) traversal_ray_t rays[4096];
+    static thread_local __attribute__((aligned (64))) traversal_ray_t<Stream> rays[4096];
 
-    auto dmax    = std::numeric_limits<float>::max();
-    auto segment = stream;
-    auto ray     = rays;
-    for (auto i=0; i<num; ++i, ++segment) {
-      if (segment->alive()) {
-	segment->kill();
-	segment->d = dmax;
+    auto ray = rays;
+    for (auto i=0; i<active.num; ++i) {
+      auto  index   = active.segment[i];
+      auto& segment = stream[index];
+      if (!segment.masked()) {
+	segment.kill();
 	// avoid copying of data and call constructor directly
-	new(ray) traversal_ray_t(segment->p, segment->wi, segment);
+	new(ray) traversal_ray_t<Stream>(segment.p, segment.wi, &segment);
+
 	push(lanes, 0, i);
-	++ray;
       }
+      ++ray;
     }
 
-    uint32_t ret = lanes.num[0];
-    if (ret == 0) {
-      return ret;
+    // all rays were masked
+    if (lanes.num[0] == 0) {
+      return;
     }
 
     auto zero = float8::load(0.0f);
@@ -275,6 +277,11 @@ struct bvh_t<T>::impl_t {
 	auto end    = todo + cur.num_rays;
 	while (todo != end) {
 	  const auto& ray = rays[*todo];
+
+	  //if (Stream::stop_on_first_hit && ray.segment->alive()) {
+	  //  ++todo;
+	  //  continue;
+	  //}
 
 	  float8_t dist;
 
@@ -340,8 +347,6 @@ struct bvh_t<T>::impl_t {
 	} while(++todo != end);
       }
     }
-
-    return ret;
   }
 };
 
@@ -352,9 +357,6 @@ bvh_t<T>::bvh_t()
 
 template<typename T>
 void bvh_t<T>::build(const std::vector<triangle_t::p>& things) {
-  printf("ray=%u\n", sizeof(traversal_ray_t));
-  printf("triangles=%u\n", sizeof(moeller_trumbore_t<8>));
-
   impl->build(things);
 
   std::clog
@@ -374,17 +376,19 @@ bool bvh_t<T>::intersect(segment_t& segment, float_t& d) const {
 }
 
 template<typename T>
-uint32_t bvh_t<T>::intersect(segment_t* stream, uint32_t num) const {
-  if (num == 0) {
-    return 0;
-  }
-  return impl->intersect(stream, num);
+void bvh_t<T>::intersect(segment_t* stream, const active_t& active) const {
+  impl->intersect(stream, active);
 }
 
 template<typename T>
 bool bvh_t<T>::occluded(segment_t& segment, const vector_t& dir, float_t d) const {
   segment.d = d;
   return impl->intersect(segment, dir, true);
+}
+
+template<typename T>
+void bvh_t<T>::occluded(occlusion_query_t* stream, const active_t& active) const {
+  impl->intersect(stream, active);
 }
 
 template class bvh_t<triangle_t>;

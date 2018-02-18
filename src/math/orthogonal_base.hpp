@@ -4,13 +4,13 @@
 
 #include <cmath>
 
-struct orthogonal_base {
+struct orthogonal_base_t {
   vector_t a, b, c;
 
-  inline orthogonal_base()
+  inline orthogonal_base_t()
   {}
   
-  inline orthogonal_base(const vector_t& n)
+  inline orthogonal_base_t(const vector_t& n)
     : a(cross(n, std::abs(n.z) < 0.5 ? vector_t(0.0, 0.0, 1.0) : vector_t(0.0, -1.0, 0.0))),
       b(n),
       c(cross(a, n))
@@ -19,7 +19,7 @@ struct orthogonal_base {
     c.normalize();
   }
 
-  inline orthogonal_base(const vector_t& z, const vector_t& y)
+  inline orthogonal_base_t(const vector_t& z, const vector_t& y)
     : a(cross(z,y)), b(y), c(z)
   {
     b.normalize();
@@ -30,14 +30,14 @@ struct orthogonal_base {
   }
 };
 
-struct invertible_base : public orthogonal_base {
+struct invertible_base_t : public orthogonal_base_t {
   vector_t ia, ib, ic;
 
-  inline invertible_base()
+  inline invertible_base_t()
   {}
 
-  inline invertible_base(const vector_t& n)
-    : orthogonal_base(n),
+  inline invertible_base_t(const vector_t& n)
+    : orthogonal_base_t(n),
       // transpose base vectors
       ia(a.x,b.x,c.x),
       ib(a.y,b.y,c.y),

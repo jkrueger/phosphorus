@@ -29,8 +29,8 @@ template<typename Integrator>
 struct camera_t {
   typedef std::shared_ptr<camera_t> p;
 
-  vector_t        position;
-  orthogonal_base b;
+  vector_t          position;
+  orthogonal_base_t b;
 
   Integrator integrator;
 
@@ -73,11 +73,15 @@ struct camera_t {
       threads[t] = std::thread([&]() {
 	allocator_t allocator(1024*1024*100);
 
+	active_t active;
+
 	typename Film::patch_t patch;
         while (film.next_patch(patch)) {
 	  segment_t*     segments = new(allocator) segment_t[num_splats];
 	  by_material_t* deferred = new(allocator) by_material_t[material_t::ids];
 	  splat_t*       splats   = new(allocator) splat_t[num_splats];
+
+	  active.num = num_splats;
 
 	  auto segment = segments;
 	  for (auto y=patch.y; y<patch.yend(); ++y) {
@@ -95,54 +99,43 @@ struct camera_t {
 		  sy * stepy + ndcy,
 		  1.0f
                 }).normalize();
+
+		auto index = (segment - segments);
+		active.segment[index] = index;
 	      }
 	    }
           }
 
-	  bool done = false;
-	  while (!done) {
-	    bool segments_alive = false;
-
+	  while (active.num > 0) {
 	    for (auto i=0; i<material_t::ids; ++i) {
-	      deferred[i].num      = 0;
-	      deferred[i].material = scene.materials[i].get();
+	      deferred[i].splats.num = 0;
+	      deferred[i].material   = scene.materials[i].get();
 	    }
 
-	    scene.intersect(segments, num_splats);
+	    scene.intersect(segments, active);
 
-	    segment = segments;
-	    for (auto i=0; i<num_splats; ++i, ++segment) {
-	      if (segment->alive()) {
-		mesh_t::p mesh = scene.meshes[segment->mesh];
+	    for (auto i=0; i<active.num; ++i) {
+	      auto  index   = active.segment[i];
+	      auto& segment = segments[index];
+	      if (segment.alive()) {
+		auto mesh = scene.meshes[segment.mesh];
 
-		segment->follow();
-		segment->n = mesh->shading_normal(*segment);
-		segment->offset();
+		segment.follow();
+		segment.n = mesh->shading_normal(segment);
+		segment.offset();
 
-		auto  num      = deferred[mesh->material->id].num++;
 		auto& material = deferred[mesh->material->id];
-	      
-		material.segments[num] = segment;
-		material.splats[num]   = i;
-
-		segments_alive = true;
+		material.splats.segment[material.splats.num++] = index;
 	      }
 	    }
 
-	    color_t cs[] = { color_t(1,0,0), color_t(0,1,0), color_t(0,0,1) };
-
+	    active.num = 0;
+	    
 	    auto material = deferred;
 	    for (auto i=0; i<material_t::ids; ++i, ++material) {
 	      auto bxdf = material->material->at();
-	      for (auto j=0; j<material->num; ++j) {
-		//splats[splat].x = samples[i % film.samples].u - 0.5f;
-		//splats[splat].y = samples[i % film.samples].v - 0.5f;
-		auto segment = material->segments[j];
-		splats[material->splats[j]].c += integrator.li(scene, *segment, bxdf);
-	      }
+	      integrator.li(scene, segments, material->splats, active, splats, bxdf);
 	    }
-
-	    done = !segments_alive;
 	  }
 
 	  film.apply_splats(patch, splats);
@@ -151,17 +144,6 @@ struct camera_t {
 	  // free all memory allocated while rendering this patch, without
 	  // calling any destructors
 	  allocator.reset();
-
-	  // iterate over meshes
-	  //   for all hits on mesh
-	  //     convert light samples to shadow rays
-	  //     trace rays
-	  //     evaluate brdf for all hits
-	  //   convert hits to brdf samples
-	  // convert all brdf samples to path segment rays
-	  // trace all rays
-	  // repeat
-	  // write splats to film
 	}
       });
     }
