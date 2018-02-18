@@ -133,7 +133,7 @@ struct camera_t {
 	    auto material = deferred;
 	    for (auto i=0; i<material_t::ids; ++i, ++material) {
 	      if (material->splats.num > 0) {
-		auto bxdf = material->material->at();
+		auto bxdf = material->material->at(allocator);
 		integrator.li(scene, segments, material->splats, active, splats, bxdf);
 	      }
 	    }
