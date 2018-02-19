@@ -23,6 +23,7 @@ struct segment_t {
   uint32_t face; // 64
   uint32_t flags : 8, depth : 8, material: 16; // 68
   vector_t wo; // 80
+  // TODO: ray differentials, light contribution
   char     padding[48];
 
   inline segment_t()
@@ -109,7 +110,11 @@ struct occlusion_query_t {
 
 struct active_t {
   uint16_t num;
-  uint16_t segment[4096];
+  uint16_t segment[256];
+
+  inline void clear() {
+    num = 0;
+  }
 };
 
 struct by_material_t {
@@ -118,6 +123,10 @@ struct by_material_t {
 };
 
 namespace shading {
+
+  inline bool has_live_paths(const active_t& active) {
+    return active.num > 0;
+  }
 
   template<typename T>
   inline void offset(T& t, const vector_t& n) {

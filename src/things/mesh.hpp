@@ -9,7 +9,7 @@
 #include <algorithm>
 
 struct mesh_t : public thing_t {
-  typedef std::shared_ptr<mesh_t> p;
+  typedef mesh_t* p;
 
   static uint32_t ids;
 

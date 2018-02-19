@@ -6,7 +6,7 @@
 #include "util/color.hpp"
 
 struct light_t {
-  typedef std::shared_ptr<light_t> p;
+  typedef light_t* p;
 
   surface_t::p surface;
   float_t      area;

@@ -7,7 +7,7 @@ struct film_t;
 namespace codec {
   namespace image {
     namespace exr {
-      void save(const std::string& path, const film_t& film);
+      void save(const std::string& path, const std::shared_ptr<film_t>& film);
     };
   }
 }

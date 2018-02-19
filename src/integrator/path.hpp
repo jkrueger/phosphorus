@@ -15,62 +15,97 @@ thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 struct single_path_t {
   const uint8_t max_depth;
 
+  occlusion_query_t* shadows;
+  invertible_base_t* tagent_spaces;
+
   inline single_path_t(uint32_t max_depth)
     : max_depth(max_depth)
   {}
 
-  template<typename Scene, typename Splat>
-  inline void li(const Scene& scene, segment_t* stream, active_t& active, active_t& out, Splat* splats, const bxdf_t::p bxdf) const {
-    static thread_local occlusion_query_t shadows[4096];
-    static thread_local invertible_base_t tagent_spaces[4096];
+  inline void allocate(allocator_t& a, uint32_t n) {
+    shadows       = new(a) occlusion_query_t[n];
+    tagent_spaces = new(a) invertible_base_t[n];
+  }
 
+  template<typename Scene>
+  inline void sample_lights(
+    const Scene& scene
+  , const segment_t* stream
+  , const active_t& active)
+  {
     auto ts = tagent_spaces;
 
     for (auto i=0; i<active.num; ++i) {
-      auto& segment = stream[active.segment[i]];
-      auto& shadow  = shadows[active.segment[i]];
+      auto index = active.segment[i];
+      const auto& segment = stream[index];
+      if (segment.alive()) {
+	auto& shadow = shadows[index];
 
-      auto  l     = (int) (dis(gen) * scene.lights.size());
-      auto& light = scene.lights[l];
+	auto  l     = (size_t) (dis(gen) * scene.lights.size());
+	auto& light = scene.lights[std::min(l, scene.lights.size()-1)];
 
-      sample_t uv = { dis(gen), dis(gen) };
-      sampled_vector_t sample;
+	sample_t uv = { dis(gen), dis(gen) };
+	sampled_vector_t sample;
 
-      light->sample(segment.p, &uv, &sample, 1);
+	light->sample(segment.p, &uv, &sample, 1);
 
-      shadow.p  = segment.p;
-      shadow.wi = sample.sampled - segment.p;
+	shadow.p  = segment.p;
+	shadow.wi = sample.sampled - segment.p;
 
-      if (in_same_hemisphere(shadow.wi, segment.n)) {
-        shading::offset(shadow, segment.n);
-	shadow.d     = shadow.wi.length();
-	shadow.wi.normalize();
-	shadow.pdf   = sample.pdf;
-	shadow.e     = light->emit();
-	shadow.flags = 0;
+	if (in_same_hemisphere(shadow.wi, segment.n)) {
+	  shading::offset(shadow, segment.n);
+	  shadow.d     = shadow.wi.length();
+	  shadow.wi.normalize();
+	  shadow.pdf   = sample.pdf;
+	  shadow.e     = light->emit();
+	  shadow.flags = 0;
+	}
+	else {
+	  shadow.mask();
+	}
+
+	new(ts+index) invertible_base_t(segment.n);
       }
-      else {
-	shadow.mask();
-      }
-
-      new(ts++) invertible_base_t(segment.n);
     }
 
     scene.occluded(shadows, active);
+  }
+
+  template<typename Splat>
+  inline void shade(
+    const bxdf_t::p bxdf
+  , const segment_t* stream
+  , const active_t& active
+  , Splat& splats)
+  {
+    //color_t color[] = {{1,0,0}, {0,1,0}, {0,0,1}};
 
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i]; 
       auto& shadow  = shadows[index];
       auto& segment = stream[index];
-      const auto& tagent_space = tagent_spaces[i];
+      const auto& tagent_space = tagent_spaces[index];
 
       if (!shadow.occluded()) {
+	// const invertible_base_t tagent_space(segment.n);
 	const auto il = tagent_space.to_local(shadow.wi);
 	const auto ol = tagent_space.to_local(segment.wi);
 	const auto s  = il.y/(shadow.pdf*shadow.d*shadow.d);
 
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
       }
+    }
+  }
+
+  inline void sample_path_directions(
+    const bxdf_t::p bxdf
+  , segment_t* stream
+  , const active_t& active
+  , active_t& out)
+  {
+    for (auto i=0; i<active.num; ++i) {
+      auto& segment = stream[active.segment[i]];
+      const auto& tagent_space = tagent_spaces[i];
 
       sample_t uv = { dis(gen), dis(gen) };
       sampled_vector_t next;
@@ -87,7 +122,8 @@ struct single_path_t {
 
       shading::offset(segment, segment.n);
 
-      if (segment.depth < max_depth && (segment.depth < 3 || !terminate_ray(segment.beta))) {
+      if (segment.depth < max_depth &&
+	  (segment.depth < 3 || !terminate_ray(segment.beta))) {
 	out.segment[out.num++] = active.segment[i];
       }
 

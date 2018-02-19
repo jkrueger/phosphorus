@@ -21,6 +21,8 @@ struct scene_t {
     : stats(s)
   {}
 
+  ~scene_t();
+
   void preprocess();
 
   bool intersect(segment_t& segment, float_t& d) const;

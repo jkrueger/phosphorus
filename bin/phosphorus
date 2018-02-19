@@ -2,4 +2,4 @@
 
 export PATH=$PATH:"target/Darwin-x86_64/bin/"
 
-rayray
+rayray $@

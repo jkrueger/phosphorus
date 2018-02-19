@@ -30,6 +30,7 @@ struct allocator_t {
     }
     char* out = pos;
     pos += bytes;
+    
     return out;
   }
 

@@ -2,6 +2,22 @@
 #include "traversal/bvh.hpp"
 
 template<typename T>
+scene_t<T>::~scene_t()
+{
+  for (auto& l : lights) {
+    delete l;
+  }
+
+  for (auto& m : meshes) {
+    delete m;
+  }
+
+  for (auto& m : materials) {
+    delete m;
+  }
+}
+
+template<typename T>
 void scene_t<T>::preprocess() {
   std::vector<triangle_t::p> triangles;
   for (const auto& thing: meshes) {

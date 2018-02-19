@@ -232,7 +232,7 @@ struct bvh_t<T>::impl_t {
     static thread_local stream::lanes_t lanes;
     static thread_local stream::task_t  tasks[256];
 
-    static thread_local __attribute__((aligned (64))) traversal_ray_t<Stream> rays[4096];
+    static thread_local __attribute__((aligned (64))) traversal_ray_t<Stream> rays[256];
 
     auto ray = rays;
     for (auto i=0; i<active.num; ++i, ++ray) {
