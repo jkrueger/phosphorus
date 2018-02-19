@@ -23,6 +23,7 @@ struct segment_t {
   uint32_t face; // 64
   uint32_t flags : 8, depth : 8, material: 16; // 68
   vector_t wo; // 80
+  // TODO: ray differentials, light contribution
   char     padding[48];
 
   inline segment_t()
