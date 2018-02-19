@@ -15,14 +15,15 @@ thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 struct single_path_t {
   const uint8_t max_depth;
 
+  occlusion_query_t shadows[4096];
+  invertible_base_t tagent_spaces[4096];
+
   inline single_path_t(uint32_t max_depth)
     : max_depth(max_depth)
   {}
 
   template<typename Scene, typename Splat>
   inline void li(const Scene& scene, segment_t* stream, active_t& active, active_t& out, Splat* splats, const bxdf_t::p bxdf) const {
-    static thread_local occlusion_query_t shadows[4096];
-    static thread_local invertible_base_t tagent_spaces[4096];
 
     auto ts = tagent_spaces;
 

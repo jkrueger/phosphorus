@@ -120,6 +120,10 @@ struct by_material_t {
 
 namespace shading {
 
+  inline bool has_live_paths(const active_t& active) {
+    return active.num > 0;
+  }
+
   template<typename T>
   inline void offset(T& t, const vector_t& n) {
     float_t offset = 0.0001f;
