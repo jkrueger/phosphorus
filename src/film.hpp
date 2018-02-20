@@ -5,6 +5,8 @@
 #include <algorithm>
 
 struct film_t {
+  typedef std::shared_ptr<film_t> p;
+
   static const uint32_t PATCH_SIZE;
 
   uint32_t width;
@@ -17,8 +19,8 @@ struct film_t {
   };
 
   struct splat_t {
-    float   x, y;
-    color_t c;
+    float    x, y;
+    color_t  c;
     uint32_t padding;
   };
 

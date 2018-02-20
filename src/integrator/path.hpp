@@ -22,14 +22,17 @@ struct single_path_t {
     : max_depth(max_depth)
   {}
 
-  template<typename Scene, typename Splat>
-  inline void li(const Scene& scene, segment_t* stream, active_t& active, active_t& out, Splat* splats, const bxdf_t::p bxdf) const {
-
+  template<typename Scene>
+  inline void sample_lights(
+    const Scene& scene
+  , const segment_t* stream
+  , const active_t& active)
+  {
     auto ts = tagent_spaces;
 
     for (auto i=0; i<active.num; ++i) {
-      auto& segment = stream[active.segment[i]];
-      auto& shadow  = shadows[active.segment[i]];
+      const auto& segment = stream[active.segment[i]];
+      auto& shadow = shadows[active.segment[i]];
 
       auto  l     = (int) (dis(gen) * scene.lights.size());
       auto& light = scene.lights[l];
@@ -56,7 +59,16 @@ struct single_path_t {
 
       new(ts++) invertible_base_t(segment.n);
     }
+  }
 
+  template<typename Scene, typename Splat>
+  inline void shade(
+    Scene& scene
+  , const bxdf_t::p bxdf
+  , const segment_t* stream
+  , const active_t& active
+  , Splat& splats)
+  {
     scene.occluded(shadows, active);
 
     for (auto i=0; i<active.num; ++i) {
@@ -72,6 +84,20 @@ struct single_path_t {
 
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
       }
+    }
+  }
+
+  inline void sample_path_directions(
+    const bxdf_t::p bxdf
+  , segment_t* stream
+  , const active_t& active
+  , active_t& out)
+  {
+    out.num = 0;
+    
+    for (auto i=0; i<active.num; ++i) {
+      auto& segment = stream[active.segment[i]];
+      const auto& tagent_space = tagent_spaces[i];
 
       sample_t uv = { dis(gen), dis(gen) };
       sampled_vector_t next;
@@ -85,7 +111,7 @@ struct single_path_t {
       segment.wo   = segment.wi;
       segment.wi   = tagent_space.to_world(next.sampled);
       segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
-
+    
       shading::offset(segment, segment.n);
 
       if (segment.depth < max_depth && (segment.depth < 3 || !terminate_ray(segment.beta))) {
