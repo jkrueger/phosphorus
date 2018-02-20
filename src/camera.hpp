@@ -98,7 +98,7 @@ struct camera_t {
 	auto ndcx = (-0.5f + x * stepx) * ratio;
 	auto ndcy = 0.5f - y * stepy;
 
-	for (auto i=0; i<film->samples; ++i, ++segment) {
+	for (auto i=0; i<film->samples; ++i, ++segment, ++splat) {
 	  auto sx = samples[i].u - 0.5f;
 	  auto sy = samples[i].v - 0.5f;
 
@@ -110,7 +110,6 @@ struct camera_t {
 	    }).normalize();
 
 	  active.segment[splat] = splat;
-	  ++splat;
 	};
       }
     }
@@ -206,6 +205,8 @@ struct camera_t {
 	    reset_deferred_buffers(scene, deferred);
 	    find_next_path_vertices(scene, segments, deferred, active);
 
+	    active.num = 0;
+	    
 	    for (auto m=deferred; m!=material_end; ++m) {
 	      if (shading::has_live_paths(m->splats)) {
 		auto bxdf = m->material->at(allocator);

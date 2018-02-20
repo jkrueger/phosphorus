@@ -93,8 +93,6 @@ struct single_path_t {
   , const active_t& active
   , active_t& out)
   {
-    out.num = 0;
-    
     for (auto i=0; i<active.num; ++i) {
       auto& segment = stream[active.segment[i]];
       const auto& tagent_space = tagent_spaces[i];
@@ -111,7 +109,7 @@ struct single_path_t {
       segment.wo   = segment.wi;
       segment.wi   = tagent_space.to_world(next.sampled);
       segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
-    
+
       shading::offset(segment, segment.n);
 
       if (segment.depth < max_depth && (segment.depth < 3 || !terminate_ray(segment.beta))) {
