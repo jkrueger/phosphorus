@@ -8,8 +8,7 @@
 #include <functional> 
 
 namespace rng {
-  static thread_local std::random_device rd;
-  static thread_local std::mt19937 gen(rd());
+  static thread_local std::mt19937 gen;
   static thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 }
 
@@ -27,7 +26,7 @@ struct sample_t {
 
 template<typename T>
 struct sampled_t {
-  T      sampled;
+  T       sampled;
   float_t pdf;
 };
 
@@ -55,7 +54,6 @@ namespace sampling {
       out.sampled = vector_t(x, std::sqrt(std::max(0.0f, 1.0f - sample.u)), y);
       out.pdf     = out.sampled.y * UNIFORM_DISC_PDF;
     }
-    
   }
 
   namespace strategies {

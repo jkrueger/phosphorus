@@ -89,16 +89,13 @@ struct camera_t {
     const auto stepx = 1.0f/film->width;
     const auto stepy = 1.0f/film->height;
 
-    active.num = num_splats;
-
-    auto splat   = 0;
     auto segment = segments;
     for (auto y=patch.y; y<patch.yend(); ++y) {
       for (auto x=patch.x; x<patch.xend(); ++x) {
 	auto ndcx = (-0.5f + x * stepx) * ratio;
 	auto ndcy = 0.5f - y * stepy;
 
-	for (auto i=0; i<film->samples; ++i, ++segment, ++splat) {
+	for (auto i=0; i<film->samples; ++i, ++segment) {
 	  auto sx = samples[i].u - 0.5f;
 	  auto sy = samples[i].v - 0.5f;
 
@@ -108,11 +105,11 @@ struct camera_t {
 	    , sy * stepy + ndcy
 	    , 1.0f
 	    }).normalize();
-
-	  active.segment[splat] = splat;
 	};
       }
     }
+
+    active.num = num_splats;
   }
 
   template<typename Scene>
@@ -149,32 +146,11 @@ struct camera_t {
   }
 
   template<typename Scene>
-  inline void sample_direct_lighting(
-    const Scene& scene			     
-  , const bxdf_t::p& bxdf
-  , const segment_t* segments
-  , const active_t& deferred
-  , splat_t* splats)
-  {
-    integrator.sample_lights(scene, segments, deferred);
-    integrator.shade(scene, bxdf, segments, deferred, splats);
-  }
-
-  inline void sample_path_directions(
-    const bxdf_t::p& bxdf
-  , segment_t* segments
-  , const active_t& deferred
-  , active_t& active)
-  {
-    integrator.sample_path_directions(bxdf, segments, deferred, active);
-  }
-
-  template<typename Scene>
   void snapshot(const Scene& scene) {
     const auto num_splats = film->num_splats();
 
     // automatically use all cores for now
-    uint32_t cores = std::thread::hardware_concurrency();
+    uint32_t cores = 1; //std::thread::hardware_concurrency();
     printf("Using %d threads for rendering\n", cores);
 
     std::thread threads[cores];
@@ -192,8 +168,6 @@ struct camera_t {
 	  by_material_t* deferred = new(allocator) by_material_t[material_t::ids];
 	  splat_t*       splats   = new(allocator) splat_t[num_splats];
 
-	  const auto material_end = deferred+material_t::ids;
-
 	  // sample all rays for this patch
 	  sample_camera_vertices(patch, segments, active, num_splats);
 
@@ -205,15 +179,18 @@ struct camera_t {
 	    reset_deferred_buffers(scene, deferred);
 	    find_next_path_vertices(scene, segments, deferred, active);
 
-	    active.num = 0;
-	    
-	    for (auto m=deferred; m!=material_end; ++m) {
+	    integrator.sample_lights(scene, segments, active);
+	    active.clear();
+
+	    auto m = deferred;
+	    auto material_end = m+material_t::ids;
+	    do {
 	      if (shading::has_live_paths(m->splats)) {
 		auto bxdf = m->material->at(allocator);
-		sample_direct_lighting(scene, bxdf, segments, m->splats, splats);
-		sample_path_directions(bxdf, segments, m->splats, active);
+		integrator.shade(bxdf, segments, m->splats, splats);
+		integrator.sample_path_directions(bxdf, segments, m->splats, active);
 	      }
-	    }
+	    } while (++m != material_end);
 	  }
 
 	  film->apply_splats(patch, splats);

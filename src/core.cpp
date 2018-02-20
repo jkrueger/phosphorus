@@ -23,7 +23,7 @@
 
 typedef camera_t<film_t, lenses::pinhole_t, single_path_t> pinhole_camera_t;
 
-const uint32_t film_t::PATCH_SIZE = 16;
+const uint32_t film_t::SAMPLES_PER_PATCH = 256;
 
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;

@@ -110,7 +110,11 @@ struct occlusion_query_t {
 
 struct active_t {
   uint16_t num;
-  uint16_t segment[4096];
+  uint16_t segment[256];
+
+  inline void clear() {
+    num = 0;
+  }
 };
 
 struct by_material_t {

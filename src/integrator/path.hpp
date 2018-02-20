@@ -59,17 +59,17 @@ struct single_path_t {
 
       new(ts++) invertible_base_t(segment.n);
     }
+
+    scene.occluded(shadows, active);
   }
 
-  template<typename Scene, typename Splat>
+  template<typename Splat>
   inline void shade(
-    Scene& scene
-  , const bxdf_t::p bxdf
+    const bxdf_t::p bxdf
   , const segment_t* stream
   , const active_t& active
   , Splat& splats)
   {
-    scene.occluded(shadows, active);
 
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i]; 
