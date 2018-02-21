@@ -44,12 +44,12 @@ const material_t::p glass(new glass_t({1, 1, 1}));
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
 
-  auto film    = film_t::p(new film_t(WIDTH, HEIGHT, 4));
+  auto film    = film_t::p(new film_t(WIDTH, HEIGHT, 1));
   auto pinhole = lenses::pinhole_t::p(new lenses::pinhole_t);
 
   auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(0.4)), L));
   mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, white));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", glass));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", teal));
 
   scene_t<mesh_bvh_t> scene(stats);
   scene.add(white);

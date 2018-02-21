@@ -14,3 +14,7 @@ inline size_t __bscf(size_t& v) {
 }
 
 #define __aligned(n) __attribute__((aligned (n)))
+
+#ifdef DEBUG
+#define assert(x)
+#endif

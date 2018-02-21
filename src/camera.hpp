@@ -42,7 +42,6 @@ struct camera_t {
   typename Film::p film;
   typename Lens::p lens;
 
-  sample_t* samples;
 
   stats_t::p stats;
 
@@ -56,14 +55,6 @@ struct camera_t {
     , integrator(8)
     , stats(stats)
   {
-    samples = new sample_t[film->samples];
-    if (film->samples == 1) {
-      samples[0].u = 0;
-      samples[0].v = 0;
-    }
-    else {
-      sampling::strategies::stratified_2d(samples, film->spd);
-    }
   }
 
   void look_at(
@@ -89,22 +80,26 @@ struct camera_t {
     const auto stepx = 1.0f/film->width;
     const auto stepy = 1.0f/film->height;
 
+    auto splat   = 0;
     auto segment = segments;
     for (auto y=patch.y; y<patch.yend(); ++y) {
       for (auto x=patch.x; x<patch.xend(); ++x) {
 	auto ndcx = (-0.5f + x * stepx) * ratio;
 	auto ndcy = 0.5f - y * stepy;
 
-	for (auto i=0; i<film->samples; ++i, ++segment) {
+	for (auto i=0; i<film->samples; ++i, ++segment, ++splat) {
 	  auto sx = samples[i].u - 0.5f;
 	  auto sy = samples[i].v - 0.5f;
 
 	  segment->p  = position;
-	  segment->wi = orientation.to_world({
+	  segment->wi =
+	    orientation.to_world({
 	      sx * stepx + ndcx
 	    , sy * stepy + ndcy
 	    , 1.0f
 	    }).normalize();
+
+	  active.segment[splat] = splat;
 	};
       }
     }
@@ -159,8 +154,8 @@ struct camera_t {
       threads[t] = std::thread([&]() {
 	allocator_t allocator(1024*1024*100);
 
-	patch_t  patch;  // the current image patch we're rendering
-	active_t active; // active path vertices
+	samples_t samples; // the current set of film samples we're rendering
+	active_t  active;  // active path vertices
 
         while (film->next_patch(patch)) {
 	  // allocate patch buffers

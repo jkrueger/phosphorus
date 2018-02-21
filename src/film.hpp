@@ -7,7 +7,7 @@
 struct film_t {
   typedef std::shared_ptr<film_t> p;
 
-  static const uint32_t SAMPLES_PER_PATCH;
+  static const uint32_t SAMPLES_PER_PATCH = 256;
 
   struct pixel_t {
     color_t c;
@@ -19,27 +19,22 @@ struct film_t {
     uint32_t padding;
   };
 
-  struct patch_t {
-    uint32_t x, y, width, height;
-
-    inline uint32_t xend() const {
-      return x+width;
-    }
-
-    inline uint32_t yend() const {
-      return y+height;
-    }
+  struct samples_t {
+    float x[SAMPLES_PER_PATCH];
+    float y[SAMPLES_PER_PATCH];
   };
-  
-  uint32_t width;
-  uint32_t height;
-  uint32_t spd;
-  uint32_t samples;
-  uint32_t pixels_per_patch;
-  uint32_t ppd;
-  uint32_t num_patches;
 
-  pixel_t* pixels;
+  uint32_t  width;
+  uint32_t  height;
+  uint32_t  spd;
+  uint32_t  num_samples;
+  uint32_t  num_patches;
+  uint32_t  pixels_per_path;
+  uint32_t  ppd;
+  uint32_t  patches_per_pixel;
+
+  pixel_t*  pixels;
+  sample_t* stratified_pattern;
 
   std::atomic_int patch;
 
@@ -48,23 +43,40 @@ struct film_t {
     , height(h)
     , spd(spd)
     , samples(spd*spd)
-    , patch(0)
   {
-    num_patches      = (w*h*samples) / SAMPLES_PER_PATCH;
-    pixels_per_patch = std::max(w*h / num_patches, 1u);
-    ppd              = (uint32_t) std::sqrt(pixels_per_patch);
+    num_samples       = w*h*samples;
+    num_patches       = num_samples / SAMPLES_PER_PATCH;
+    pixels_per_patch  = num_samples / num_patches;
+    ppd               = (uint32_t) std::sqrt(ppp);
+    patches_per_pixel = SAMPLES_PER_PATCH / samples;
+
+    stratified_pattern = new sample_t[samples];
+    if (samples == 1) {
+      samples[0].u = 0;
+      samples[0].v = 0;
+    }
+    else {
+      sampling::strategies::stratified_2d(samples, spd);
+    }
 
     // allocate a single frame buffer for the output
     pixels = new pixel_t[w*h];
   }
 
-  inline bool next_patch(patch_t& out) {
-    auto p = patch++;
-    if (p < num_patches) {
-      out.x      = (p * ppd) % width;
-      out.y      = ((p * ppd) / width) * ppd;
-      out.width  = ppd;
-      out.height = ppd;
+  inline bool sample_film(samples_t& out) {
+    auto patch = patch++;
+    if (patch < num_patches) {
+      auto q  = (patch % patches_per_pixel);
+      auto p  = patch - q;
+      auto xs = (p * ppd) % width;
+      auto ys = ((p * ppd) / width) * ppd;
+
+      for (auto y=ys; y<ys+ppd; ++y) {
+	for (auto x=xs; x<xs+ppd; ++x) {
+	  
+	}
+      }
+
       return true;
     }
     return false;
@@ -89,7 +101,7 @@ struct film_t {
 	auto pixel = (patch.y + y) * width + (patch.x + x);
 
 	color_t  c;
-	splat_t* end = s + SAMPLES_PER_PATCH;
+	splat_t* end = s + samples;
 	while (s != end) {
 	  filter(c, *s);
 	  ++s;
