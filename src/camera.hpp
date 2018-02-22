@@ -31,8 +31,11 @@ template<typename Film, typename Lens, typename Integrator>
 struct camera_t {
   typedef std::shared_ptr<camera_t> p;
 
-  typedef typename Film::splat_t splat_t;
-  typedef typename Film::patch_t patch_t;
+  typedef typename Film::patch_t   patch_t;
+  typedef typename Film::splat_t   splat_t;
+  typedef typename Film::samples_t samples_t;
+
+  static const uint32_t SAMPLES_PER_ITERATION=256;
 
   vector_t          position;
   orthogonal_base_t orientation;
@@ -69,48 +72,38 @@ struct camera_t {
     orientation = orthogonal_base_t(z, up);
   }
 
-  template<typename Patch>
   inline void sample_camera_vertices(
-    const Patch& patch
+    const patch_t& patch
+  , samples_t& samples
   , segment_t* segments
   , active_t& active
   , uint32_t num_splats) const
   {
-    const auto ratio = (float_t) film->width / (float_t) film->height;
-    const auto stepx = 1.0f/film->width;
-    const auto stepy = 1.0f/film->height;
+    film->sample_film(patch, samples);
 
-    auto splat   = 0;
     auto segment = segments;
-    for (auto y=patch.y; y<patch.yend(); ++y) {
-      for (auto x=patch.x; x<patch.xend(); ++x) {
-	auto ndcx = (-0.5f + x * stepx) * ratio;
-	auto ndcy = 0.5f - y * stepy;
-
-	for (auto i=0; i<film->samples; ++i, ++segment, ++splat) {
-	  auto sx = samples[i].u - 0.5f;
-	  auto sy = samples[i].v - 0.5f;
-
-	  segment->p  = position;
-	  segment->wi =
-	    orientation.to_world({
-	      sx * stepx + ndcx
-	    , sy * stepy + ndcy
-	    , 1.0f
-	    }).normalize();
-
-	  active.segment[splat] = splat;
-	};
-      }
+    for (auto i=0; i<num_splats; ++i, ++segment) {
+      segment->p  = position;
+      segment->wi =
+	orientation.to_world({
+	    samples.x[i]
+	  , samples.y[i]
+	  , 1.0f
+	}).normalize();
     }
+  }
 
-    active.num = num_splats;
+  inline void activate_samples(active_t& active, uint32_t start, uint32_t num) const {
+    for (auto i=start; i<start+num; ++i) {
+      active.segment[i] = i;
+    }
+    active.num = num;
   }
 
   template<typename Scene>
   inline void reset_deferred_buffers(const Scene& scene, by_material_t* deferred) {
     for (auto i=0; i<material_t::ids; ++i) {
-      deferred[i].material = scene.materials[i];
+      deferred[i].material   = scene.materials[i];
       deferred[i].splats.num = 0;
     }
   }
@@ -145,7 +138,7 @@ struct camera_t {
     const auto num_splats = film->num_splats();
 
     // automatically use all cores for now
-    uint32_t cores = 1; //std::thread::hardware_concurrency();
+    uint32_t cores = std::thread::hardware_concurrency();
     printf("Using %d threads for rendering\n", cores);
 
     std::thread threads[cores];
@@ -154,8 +147,11 @@ struct camera_t {
       threads[t] = std::thread([&]() {
 	allocator_t allocator(1024*1024*100);
 
-	samples_t samples; // the current set of film samples we're rendering
-	active_t  active;  // active path vertices
+	patch_t  patch;
+	active_t active;
+
+	// the current set of film samples we're rendering
+	samples_t samples(allocator, num_splats);
 
         while (film->next_patch(patch)) {
 	  // allocate patch buffers
@@ -164,31 +160,36 @@ struct camera_t {
 	  splat_t*       splats   = new(allocator) splat_t[num_splats];
 
 	  // sample all rays for this patch
-	  sample_camera_vertices(patch, segments, active, num_splats);
+	  sample_camera_vertices(patch, samples, segments, active, num_splats);
 
 	  // TODO: find first hit separately and compute direct light contribution
 	  // with stratified samples?
 
-	  // run rendering pipeline for patch 
-	  while (shading::has_live_paths(active)) {
-	    reset_deferred_buffers(scene, deferred);
-	    find_next_path_vertices(scene, segments, deferred, active);
+	  for (int i=0; i<num_splats; i+=SAMPLES_PER_ITERATION) {
+	    activate_samples(active, i, SAMPLES_PER_ITERATION);
 
-	    integrator.sample_lights(scene, segments, active);
-	    active.clear();
+	    // run rendering pipeline for patch 
+	    while (shading::has_live_paths(active)) {
+	      reset_deferred_buffers(scene, deferred);
+	      find_next_path_vertices(scene, segments, deferred, active);
 
-	    auto m = deferred;
-	    auto material_end = m+material_t::ids;
-	    do {
-	      if (shading::has_live_paths(m->splats)) {
-		auto bxdf = m->material->at(allocator);
-		integrator.shade(bxdf, segments, m->splats, splats);
-		integrator.sample_path_directions(bxdf, segments, m->splats, active);
-	      }
-	    } while (++m != material_end);
+	      integrator.sample_lights(scene, segments, active);
+	      active.clear();
+
+	      auto m = deferred;
+	      auto material_end = m+material_t::ids;
+	      do {
+		if (shading::has_live_paths(m->splats)) {
+		  auto bxdf = m->material->at(allocator);
+		  integrator.shade(bxdf, segments, m->splats, splats);
+		  integrator.sample_path_directions(bxdf, segments, m->splats, active);
+		}
+	      } while (++m != material_end);
+	    }
+
+	    film->apply_splats(patch, samples, splats);
 	  }
 
-	  film->apply_splats(patch, splats);
 	  stats->areas++;
 
 	  // free all memory allocated while rendering this patch, without

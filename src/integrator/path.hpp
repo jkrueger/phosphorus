@@ -83,6 +83,8 @@ struct single_path_t {
 	const auto s  = il.y/(shadow.pdf*shadow.d*shadow.d);
 
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
+
+	//printf("%f, %f, %f, %f\n", s, splats[index].c.r, splats[index].c.g, splats[index].c.b);
       }
     }
   }

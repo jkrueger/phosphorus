@@ -7,31 +7,42 @@
 struct film_t {
   typedef std::shared_ptr<film_t> p;
 
-  static const uint32_t SAMPLES_PER_PATCH = 256;
+  static const uint32_t PATCH_SIZE;
 
   struct pixel_t {
-    color_t c;
+    color_t  c;
+    uint32_t padding;
+  };
+
+  struct patch_t {
+    uint32_t x, y, w, h;
   };
 
   struct splat_t {
-    float    x, y;
     color_t  c;
     uint32_t padding;
   };
 
   struct samples_t {
-    float x[SAMPLES_PER_PATCH];
-    float y[SAMPLES_PER_PATCH];
+    float_t* x;
+    float_t* y;
+
+    inline samples_t(allocator_t& a, uint32_t num) {
+      x = new(a) float_t(num);
+      y = new(a) float_t(num);
+    }
   };
 
-  uint32_t  width;
-  uint32_t  height;
-  uint32_t  spd;
-  uint32_t  num_samples;
-  uint32_t  num_patches;
-  uint32_t  pixels_per_path;
-  uint32_t  ppd;
-  uint32_t  patches_per_pixel;
+  uint32_t width;
+  uint32_t height;
+  float_t  ratio;
+  float_t  stepx;
+  float_t  stepy;
+  uint32_t spp;
+  uint32_t spd;
+  uint32_t num_samples;
+  uint32_t num_patches;
+  uint32_t ppd;
 
   pixel_t*  pixels;
   sample_t* stratified_pattern;
@@ -42,48 +53,62 @@ struct film_t {
     : width(w)
     , height(h)
     , spd(spd)
-    , samples(spd*spd)
+    , spp(spd*spd)
   {
-    num_samples       = w*h*samples;
-    num_patches       = num_samples / SAMPLES_PER_PATCH;
-    pixels_per_patch  = num_samples / num_patches;
-    ppd               = (uint32_t) std::sqrt(ppp);
-    patches_per_pixel = SAMPLES_PER_PATCH / samples;
+    num_samples       = w*h*spp;
+    num_patches       = num_samples / square(PATCH_SIZE);
 
-    stratified_pattern = new sample_t[samples];
-    if (samples == 1) {
-      samples[0].u = 0;
-      samples[0].v = 0;
+    ratio = (float_t) width / (float_t) height;
+    stepx = 1.0f/width;
+    stepy = 1.0f/height;
+
+    stratified_pattern = new sample_t[spp];
+    if (spp == 1) {
+      stratified_pattern[0].u = 0;
+      stratified_pattern[0].v = 0;
     }
     else {
-      sampling::strategies::stratified_2d(samples, spd);
+      sampling::strategies::stratified_2d(stratified_pattern, spd);
     }
 
     // allocate a single frame buffer for the output
     pixels = new pixel_t[w*h];
   }
 
-  inline bool sample_film(samples_t& out) {
-    auto patch = patch++;
-    if (patch < num_patches) {
-      auto q  = (patch % patches_per_pixel);
-      auto p  = patch - q;
-      auto xs = (p * ppd) % width;
-      auto ys = ((p * ppd) / width) * ppd;
-
-      for (auto y=ys; y<ys+ppd; ++y) {
-	for (auto x=xs; x<xs+ppd; ++x) {
-	  
-	}
-      }
+  inline bool next_patch(patch_t& out) {
+    auto p = patch++;
+    if (p < num_patches) {
+      out.x = (p * ppd) % width;
+      out.y = ((p * ppd) / width) * ppd;
+      out.w = PATCH_SIZE;
+      out.h = PATCH_SIZE;
 
       return true;
     }
     return false;
   }
 
+  inline void sample_film(const patch_t& patch, samples_t& out) const {
+    for (auto sy=patch.y; sy<patch.y+patch.h; ++sy) {
+      const auto ndcy = 0.5f - sy * stepy;
+
+      for (auto sx=patch.x; sx<patch.x+patch.w; ++sx) {
+	const auto ndcx = (-0.5f + sx * stepx) * ratio;
+
+	for (auto i=0; i<spp; ++i) {
+	  const auto sx = stratified_pattern[i].u - 0.5f;
+	  const auto sy = stratified_pattern[i].v - 0.5f;
+
+	  out.x[i]  = ndcx + stepx * sx;
+	  out.y[i]  = ndcy + stepy * sy;
+	}
+      }
+    }
+  }
+
   inline void filter(color_t& c, const splat_t& splat) const {
     c += splat.c;
+    //std::cout << c << std::endl;
     /* 
        (std::max(0.0f, 2.0f - std::abs(splat.x)) *
         std::max(0.0f, 2.0f - std::abs(splat.y)));
@@ -91,24 +116,25 @@ struct film_t {
   }
 
   inline uint32_t num_splats() const {
-    return SAMPLES_PER_PATCH;
+    return square(PATCH_SIZE) * spp;
   }
 
-  inline void apply_splats(const patch_t& patch, splat_t* const splats) {
-    splat_t* s = splats;
-    for (auto y=0; y<patch.height; ++y) {
-      for (auto x=0; x<patch.width; ++x) {
-	auto pixel = (patch.y + y) * width + (patch.x + x);
+  inline void apply_splats(
+    const patch_t&   patch
+  , const samples_t& samples
+  , splat_t* const   splats)
+  {
+    auto s = splats;
+    for (auto y=patch.y; y<patch.y+patch.h; ++y) {
+      for (auto x=patch.x; x<patch.x+patch.w; ++x) {
+	auto pixel = y * width + x;
+	for (auto i=0; i<spp; ++i, ++s) {
 
-	color_t  c;
-	splat_t* end = s + samples;
-	while (s != end) {
+	  color_t  c;
 	  filter(c, *s);
-	  ++s;
-	}
-	c.scale(1.0f/samples);
 
-	pixels[pixel].c += c;
+	  pixels[pixel].c += c.scale(1.0f/spp);
+	}
       }
     }
   }
