@@ -98,7 +98,7 @@ struct camera_t {
 
   template<typename Scene>
   inline void reset_deferred_buffers(const Scene& scene, by_material_t* deferred) {
-    for (auto i=0; i<material_t::ids; ++i) {
+    for (auto i=0; i<scene.materials.size(); ++i) {
       deferred[i].material   = scene.materials[i];
       deferred[i].splats.num = 0;
     }
@@ -152,7 +152,7 @@ struct camera_t {
 	  samples_t samples(allocator, num_splats);
 
 	  auto segments = new(allocator) segment_t[num_splats];
-	  auto deferred = new(allocator) by_material_t[material_t::ids];
+	  auto deferred = new(allocator) by_material_t[scene.materials.size()];
 	  auto splats   = new(allocator) splat_t[num_splats];
 
 	  integrator.allocate(allocator, num_splats);
@@ -175,7 +175,7 @@ struct camera_t {
 	      active.clear();
 
 	      auto m = deferred;
-	      auto material_end = m+material_t::ids;
+	      auto material_end = m+scene.materials.size();
 	      do {
 		if (shading::has_live_paths(m->splats)) {
 		  auto bxdf = m->material->at(allocator);

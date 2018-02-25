@@ -19,10 +19,10 @@ namespace tesselate {
     float hh = rect.height * 0.5f;
 
     vector_t v[] = {
-      {-hw, 0.329874f,  hh },
-      { hw, 0.329874f,  hh },
-      { hw, 0.329874f, -hh },
-      {-hw, 0.329874f, -hh }
+      {-hw, -30,  hh },
+      { hw, -30,  hh },
+      { hw, -30, -hh },
+      {-hw, -30, -hh }
     };
 
     vector_t n[] = {

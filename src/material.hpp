@@ -11,8 +11,6 @@ struct shading_info_t;
 struct material_t {
   typedef material_t* p;
 
-  static uint32_t ids;
-  
   uint32_t id;
 
   material_t();

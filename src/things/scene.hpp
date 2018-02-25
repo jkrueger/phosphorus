@@ -4,11 +4,18 @@
 #include "light.hpp"
 #include "thing.hpp"
 #include "util/stats.hpp"
+#include "traversal/bvh.hpp"
 
 #include <vector>
 
-template<typename Accel>
 struct scene_t {
+  virtual void add(const mesh_t::p&) = 0;
+
+  virtual material_t::p material(uint32_t id) const = 0;
+};
+
+template<typename Accel>
+struct scene_impl_t : public scene_t {
   Accel accel;
 
   std::vector<light_t::p>    lights;
@@ -17,11 +24,11 @@ struct scene_t {
 
   stats_t::p stats;
 
-  scene_t(const stats_t::p& s)
+  scene_impl_t(const stats_t::p& s)
     : stats(s)
   {}
 
-  ~scene_t();
+  ~scene_impl_t();
 
   void preprocess();
 
@@ -34,6 +41,7 @@ struct scene_t {
   void occluded(occlusion_query_t* stream, const active_t& active) const;
 
   inline void add(const mesh_t::p& thing) {
+    thing->id = meshes.size();
     meshes.push_back(thing);
   }
 
@@ -44,6 +52,13 @@ struct scene_t {
   }
 
   inline void add(const material_t::p& material) {
+    material->id = materials.size();
     materials.push_back(material);
   }
+
+  inline material_t::p material(uint32_t id) const {
+    return id < materials.size() ? materials[id] : nullptr;
+  }
 };
+
+typedef scene_impl_t<mesh_bvh_t> mesh_scene_t; 
