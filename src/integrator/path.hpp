@@ -78,8 +78,6 @@ struct single_path_t {
   , const active_t& active
   , Splat& splats)
   {
-    //color_t color[] = {{1,0,0}, {0,1,0}, {0,0,1}};
-
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i]; 
       auto& shadow  = shadows[index];
@@ -104,7 +102,7 @@ struct single_path_t {
   , active_t& out)
   {
     for (auto i=0; i<active.num; ++i) {
-      auto index = active.segment[i];
+      auto  index = active.segment[i];
       auto& segment = stream[index];
       const auto& tagent_space = tagent_spaces[index];
 
