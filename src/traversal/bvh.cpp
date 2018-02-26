@@ -22,31 +22,33 @@ struct accelerator_t
 
 template<>
 struct accelerator_t<triangle_t> {
-  typedef std::vector<moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>> storage_t;
+  typedef moeller_trumbore_t<build::MAX_PRIMS_IN_NODE> triangles_t;
+  typedef std::vector<triangles_t> storage_t;
 
   template<typename U>
-  static inline bool intersect(
-      traversal_ray_t<U>& ray
-    , const moeller_trumbore_t<build::MAX_PRIMS_IN_NODE>& tris)
-  {
+  static inline bool intersect(traversal_ray_t<U>& ray, const triangles_t& tris) {
     return tris.intersect(ray);
   }
 
   static inline uint32_t insert_things(
-    uint32_t start, uint32_t end,
-    const std::vector<build::primitive_t>& primitives,
-    const std::vector<typename triangle_t::p>& unsorted,
-    storage_t& things) {
+    uint32_t start
+  , uint32_t end
+  , const std::vector<build::primitive_t>& primitives
+  , const std::vector<typename triangle_t::p>& unsorted
+  , storage_t& things)
+  {
+    auto index = things.size();
+    for (auto i=0; i<(end-start); i+=build::MAX_PRIMS_IN_NODE) {
+      auto size = std::min(end-start, (uint32_t) build::MAX_PRIMS_IN_NODE);
 
-    triangle_t::p tris[build::MAX_PRIMS_IN_NODE];
+      triangle_t::p tris[build::MAX_PRIMS_IN_NODE];
+      for (auto j=0; j<size; ++j) {
+	tris[j] = unsorted[primitives[start+i+j].index];
+      }
 
-    for (auto j=0; j<(end-start); ++j) {
-      tris[j] = unsorted[primitives[start+j].index];
+      things.emplace_back(tris, size);
     }
-
-    things.emplace_back(tris, (end-start));
-
-    return things.size()-1;
+    return index;
   }
 };
 
@@ -254,7 +256,7 @@ struct bvh_t<T>::impl_t {
     auto zero = float8::load(0.0f);
 
     auto top = 0;
-    push(tasks, top, 0, lanes.num[0], 0, 0);
+    push(tasks, top, lanes.num[0]);
 
     while (top > 0) {
       auto& cur = tasks[--top];
@@ -308,7 +310,7 @@ struct bvh_t<T>::impl_t {
 	
 	// TODO: collect stats on lane utilization to see if efficiently sorting
 	// for smaller 'n' makes sense
-	
+
 	auto n=0;
 	for (auto i=0; i<8; ++i) {
 	  auto num = num_active[i];
@@ -328,20 +330,22 @@ struct bvh_t<T>::impl_t {
 	}
 
 	for (auto i=0; i<n; ++i) {
-	  auto num = num_active[ids[i]];
-	  auto is_leaf = node->is_leaf(ids[i]) ? 1 : 0;
-	  push(tasks, top, node->offset[ids[i]], num, ids[i], is_leaf);
+	  push(tasks, top, node, ids[i], num_active[ids[i]]);
 	}
       }
       else {
 	auto todo = pop(lanes, cur.lane, cur.num_rays);
 	auto end  = todo + cur.num_rays;
 	do {
-	  if (accelerator_t<T>::intersect(
-	        rays[*todo]
-	      , things[cur.offset])) {
-	    rays[*todo].segment->revive();
-	  }
+	  auto index = cur.offset;
+	  do {
+	    if (accelerator_t<T>::intersect(
+	          rays[*todo]
+	        , things[index])) {
+	      rays[*todo].segment->revive();
+	    }
+	    index += build::MAX_PRIMS_IN_NODE;
+	  } while(index < cur.prims);
 	} while(++todo != end);
       }
     }

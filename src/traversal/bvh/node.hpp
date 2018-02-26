@@ -2,12 +2,16 @@
 
 template<int N>
 struct mbvh_node_t {
+  enum flags_t {
+    LEAF = 1
+  };
+
   // child node boundaries
   float    bounds[2*N*3];
   // offsts into child nodes, or pointers to primitives
   uint32_t offset[N];
-  uint32_t axis[N-1];
   uint8_t  num[N];
+  uint32_t flags[N];
 
   inline mbvh_node_t() {
     memset(bounds, 0, 2*N*3*4);
@@ -19,6 +23,7 @@ struct mbvh_node_t {
 
     memset(offset, 0, N*sizeof(uint32_t));
     memset(num, 0, N*sizeof(uint8_t));
+    memset(flags, 0, N*sizeof(uint32_t));
   }
 
   inline void set_bounds(uint32_t i, const aabb_t& b) {
@@ -30,12 +35,18 @@ struct mbvh_node_t {
     bounds[i + 40] = b.max.z;
   }
 
+  inline void set_leaf(uint32_t i, uint32_t index, uint32_t prims) {
+    flags[i]  |= LEAF;
+    offset[i] = index;
+    num[i]    = prims;
+  }
+
   inline bool is_leaf(uint32_t i) const {
-    return num[i] > 0;
+    return (flags[i] & LEAF) != 0;
   }
 
   inline bool is_empty(uint32_t i) const {
-    return num[i] == 0 && offset[i] == 0;
+    return (num[i] == 0) && (offset[i] == 0);
   }
 
   inline void set_offset(uint32_t i, uint32_t o) {

@@ -138,6 +138,10 @@ namespace build {
     return g.count() > MAX_PRIMS_IN_NODE;
   }
 
+  inline bool too_small_to_split(const geometry_t& g) {
+    return g.count() < MAX_PRIMS_IN_NODE;
+  }
+
   inline float leaf_cost(const split_t& s, const geometry_t& g) {
     return g.count();
   }
@@ -219,7 +223,7 @@ namespace build {
     auto n = geometry.count();
     auto s = find(geometry);
 
-    if (geometry.count() <= 8 && leaf_cost(s, geometry) <= 1.0f + s.cost) {
+    if (too_small_to_split(geometry) || leaf_cost(s, geometry) <= 1.0f + s.cost) {
       return 0;
     }
 
@@ -263,9 +267,7 @@ namespace build {
 	    children[i].start, children[i].end,
 	    geometry.primitives,
 	    things);
-
-	node->offset[i] = index;
-	node->num[i]    = children[i].count();
+	node->set_leaf(i, index, children[i].count());
       }
     }
 
