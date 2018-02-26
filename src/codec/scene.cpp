@@ -57,6 +57,7 @@ void add_meshes(scene_t& scene, const aiScene* aiScene, const aiNode* node) {
       }
 
       scene.add(out);
+      printf("id: %d\n", out->id);
     }
     else {
       printf("skipping empty mesh\n");
