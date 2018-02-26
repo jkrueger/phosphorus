@@ -29,7 +29,7 @@ const uint32_t film_t::PATCH_SIZE = 16;
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
-const color_t L(0.01, 0.01, 0.01);
+const color_t L(0.005, 0.005, 0.005);
 
 const material_t::p white(new diffuse_reflector_t({0.96f*0.8, 0.96f*0.8, 0.86f*0.8}, 40.0f));
 const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}, 40.0));
