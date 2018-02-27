@@ -31,7 +31,7 @@ void add_meshes(scene_t& scene, const aiScene* aiScene, const aiNode* node) {
 
       if (face->mNumIndices == 3) {
 	for (auto k=0; k<face->mNumIndices; ++k) {
-	  mesh_t::faces.push_back(face->mIndices[k]);
+	  mesh_t::faces.push_back(face->mIndices[2-k]);
 	}
       }
       else {
@@ -45,7 +45,7 @@ void add_meshes(scene_t& scene, const aiScene* aiScene, const aiNode* node) {
 	auto& v = mesh->mVertices[k];
 	mesh_t::vertices.push_back({v.x, v.y, v.z});
       }
-
+      
       if (mesh->mNormals) {
 	for (auto k=0; k<mesh->mNumVertices; ++k) {
 	  auto& n = mesh->mNormals[k];

@@ -109,7 +109,8 @@ struct camera_t {
     const Scene& scene
   , segment_t* segments
   , by_material_t* m
-  , active_t& active)
+  , active_t& active
+  , splat_t* splats)
   {
     // find intersection points following path vertices
     scene.intersect(segments, active);
@@ -126,6 +127,9 @@ struct camera_t {
 	auto& material = m[mesh->material->id];
 	material.splats.segment[material.splats.num++] = index;
       }
+      //else {
+      //splats[index].c += segment.beta * color_t(0.3f,0.2f,0.2f);
+      //}
     }
   }
 
@@ -169,7 +173,7 @@ struct camera_t {
 	    // run rendering pipeline for patch 
 	    while (shading::has_live_paths(active)) {
 	      reset_deferred_buffers(scene, deferred);
-	      find_next_path_vertices(scene, segments, deferred, active);
+	      find_next_path_vertices(scene, segments, deferred, active, splats);
 
 	      integrator.sample_lights(scene, segments, active);
 	      active.clear();

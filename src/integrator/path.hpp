@@ -9,6 +9,8 @@
 #include "things/scene.hpp"
 #include "util/color.hpp"
 
+#include "bxdf/reflection.hpp"
+
 thread_local std::mt19937 gen;
 thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
@@ -89,7 +91,7 @@ struct single_path_t {
 	const auto il = tagent_space.to_local(shadow.wi);
 	const auto ol = tagent_space.to_local(segment.wi);
 	const auto s  = il.y/shadow.pdf;
-
+	
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
       }
     }

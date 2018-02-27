@@ -16,7 +16,8 @@ rayray_sources_$(d) += \
         material/diffuse.cpp \
         material/plastic.cpp \
         material/mirror.cpp \
-        material/glass.cpp
+        material/glass.cpp \
+        material/paint.cpp
 
 rayray_precompiled_$(d) :=
 rayray_target_dir_$(d)  := bin
