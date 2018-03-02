@@ -90,7 +90,7 @@ struct single_path_t {
 	// const invertible_base_t tagent_space(segment.n);
 	const auto il = tagent_space.to_local(shadow.wi);
 	const auto ol = tagent_space.to_local(segment.wi);
-	const auto s  = il.y/(shadow.pdf*shadow.d*shadow.d);
+	const auto s  = il.y/shadow.pdf;
 
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
       }
@@ -104,8 +104,9 @@ struct single_path_t {
   , active_t& out)
   {
     for (auto i=0; i<active.num; ++i) {
-      auto& segment = stream[active.segment[i]];
-      const auto& tagent_space = tagent_spaces[i];
+      auto index = active.segment[i];
+      auto& segment = stream[index];
+      const auto& tagent_space = tagent_spaces[index];
 
       sample_t uv = { dis(gen), dis(gen) };
       sampled_vector_t next;

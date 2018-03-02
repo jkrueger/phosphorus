@@ -28,16 +28,16 @@ const uint32_t film_t::PATCH_SIZE = 16;
 const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
-const color_t L(32.0, 32.0, 32.0);
+const color_t L(2.4, 2.4, 2.4);
 
 const material_t::p white(new diffuse_reflector_t({0.96f, 0.96f, 0.86f}, 40.0f));
-const material_t::p teal(new diffuse_reflector_t({0.04, 0.47, 0.58}, 40.0f));
+const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {1,1,1}, .4f));
 //const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 100.0));
 //const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
 //const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
-//const material_t::p purple(new diffuse_reflector_t(color_t::from_rgb(70, 33, 122)));
+const material_t::p purple(new plastic_t(color_t::from_rgb(186,85,211)*0.4f, {0.3,0.15,0.4}, .1f));
 //const material_t::p jade(new diffuse_reflector_t({0.f, 0.65, 0.41}));
-const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}, 2.0f));
+const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}, 20.0f));
 //const material_t::p mirror(new mirror_t({1, 1, 1}));
 const material_t::p glass(new glass_t({1, 1, 1}));
 
@@ -50,12 +50,13 @@ int main(int argc, char** argv) {
   auto pinhole = lenses::pinhole_t::p(new lenses::pinhole_t);
 
   auto light0 = light_t::p(new light_t({0.0f, 4.0f, 0.0f}, surface_t::p(new things::sphere_t(0.4)), L));
-  mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, orange));
-  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", teal));
+  mesh_t::p floor(tesselate::surface(parametric::rectangle_t{100, 100}, white));
+  mesh_t::p bunny(codec::mesh::ply::load("models/bunny.ply", purple));
 
   scene_t<mesh_bvh_t> scene(stats);
   scene.add(white);
   scene.add(teal);
+  scene.add(purple);
   scene.add(orange);
   scene.add(glass);
   scene.add(light0);

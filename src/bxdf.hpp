@@ -12,14 +12,15 @@ struct bxdf_t {
   enum flags_t {
     NONE         = 0,
     DIFFUSE      = (1 << 0),
-    SPECULAR     = (1 << 1),
-    REFLECTIVE   = (1 << 2),
-    TRANSMISSIVE = (1 << 3)
+    GLOSSY       = (1 << 1),
+    SPECULAR     = (1 << 2),
+    REFLECTIVE   = (1 << 3),
+    TRANSMISSIVE = (1 << 4)
   };
 
   uint32_t flags;
 
-  inline bxdf_t(flags_t f)
+  inline bxdf_t(uint32_t f)
     : flags(f)
   {}
 
@@ -43,6 +44,10 @@ struct bxdf_t {
     return is(DIFFUSE);
   }
 
+  inline bool is_glossy() const {
+    return is(GLOSSY);
+  }
+
   inline bool is_specular() const {
     return is(SPECULAR);
   }
@@ -53,7 +58,7 @@ struct bxdf_t {
    *
    */
   inline bool has_distribution() const {
-    return is_diffuse() || is_specular();
+    return is_diffuse() || is_glossy();
   }
 
   inline bool is_reflective() const {
