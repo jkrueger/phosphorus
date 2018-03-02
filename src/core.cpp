@@ -29,13 +29,14 @@ const uint32_t WIDTH=1280;
 const uint32_t HEIGHT=720;
 
 const color_t L(2.4, 2.4, 2.4);
+const color_t R(color_t::from_rgb(186,85,211));
 
 const material_t::p white(new diffuse_reflector_t({0.96f, 0.96f, 0.86f}, 40.0f));
 const material_t::p teal(new plastic_t({0.04, 0.47, 0.58}, {1,1,1}, .4f));
 //const material_t::p teal2(new plastic_t({0.04, 0.47, 0.58}, {0.4,0.7,0.8}, 100.0));
 //const material_t::p red(new diffuse_reflector_t({1.f, 0.0, 0.0}));
 //const material_t::p pink(new diffuse_reflector_t({1.f, 0.4, 0.1}));
-const material_t::p purple(new plastic_t(color_t::from_rgb(186,85,211)*0.4f, {0.3,0.15,0.4}, .1f));
+const material_t::p purple(new plastic_t(R*0.2f, R*0.4f, .1f));
 //const material_t::p jade(new diffuse_reflector_t({0.f, 0.65, 0.41}));
 const material_t::p orange(new diffuse_reflector_t({0.89, 0.52, 0.04}, 20.0f));
 //const material_t::p mirror(new mirror_t({1, 1, 1}));

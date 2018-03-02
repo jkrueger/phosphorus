@@ -21,10 +21,18 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& wi, const vector_t& wo) const {
-      const auto wh = (wi + wo).normalize();
+      const auto wh = (wi + wo);
       const auto cos_ti = std::abs(tangent_space::cos_theta(wi));
       const auto cos_to = std::abs(tangent_space::cos_theta(wo));
-      const auto cos_h  = dot(wi, wh);
+
+      if (cos_ti == 0 || cos_to == 0) {
+	return color_t(0);
+      }
+      if (wh.x == 0 || wh.y == 0 || wh.z == 0) {
+	return color_t(0);
+      }
+
+      const auto cos_h = dot(wi, wh.normalized());
 
       return (r * distribution(cos_h) * shadowing(cos_to) * fresnel(cos_h)) *
 	(1.0f / (4 * cos_ti * cos_to));
