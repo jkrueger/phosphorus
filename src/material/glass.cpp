@@ -2,6 +2,7 @@
 
 #include "bxdf/blend.hpp"
 #include "bxdf/reflection.hpp"
+#include "math/fresnel.hpp"
 
 typedef bxdf::specular_reflection_t   brdf_t;
 typedef bxdf::specular_transmission_t btdf_t;
