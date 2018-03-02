@@ -17,7 +17,7 @@ namespace bxdf {
       , r(r)
       , distribution(alpha)
       , shadowing(alpha)
-      , fresnel(1.5f, 1)
+      , fresnel(1.63f, 1)
     {}
 
     color_t f(const vector_t& wi, const vector_t& wo) const {

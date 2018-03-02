@@ -134,6 +134,10 @@ namespace build {
     geometry_t primitives; // the  primitives in this node
   };
 
+  inline bool too_large(const geometry_t& g) {
+    return g.count() > MAX_PRIMS_IN_NODE;
+  }
+
   inline bool too_small_to_split(const geometry_t& g) {
     return g.count() < MAX_PRIMS_IN_NODE;
   }
@@ -149,6 +153,10 @@ namespace build {
 
     for (auto axis=0; axis<3; ++axis) {
       bins_t<NUM_SPLIT_BINS> bins;
+
+      if (geometry.centroid_bounds.empty_on(axis)) {
+	continue;
+      }
 
       for (auto i=0; i<geometry.count(); ++i) {
 	bins.add(geometry.centroid_bounds, geometry.primitive(i), axis);
@@ -215,8 +223,7 @@ namespace build {
     auto n = geometry.count();
     auto s = find(geometry);
 
-    if (too_small_to_split(geometry) ||
-	leaf_cost(s, geometry) <= 1.0f + s.cost) {
+    if (too_small_to_split(geometry) || leaf_cost(s, geometry) <= 1.0f + s.cost) {
       return 0;
     }
 
@@ -260,9 +267,7 @@ namespace build {
 	    children[i].start, children[i].end,
 	    geometry.primitives,
 	    things);
-
-	node->offset[i] = index;
-	node->num[i]    = children[i].count();
+	node->set_leaf(i, index, children[i].count());
       }
     }
 

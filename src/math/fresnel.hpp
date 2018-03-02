@@ -45,12 +45,42 @@ namespace fresnel {
   };
 
   struct conductor_t {
-    float_t etaI, etaT;
+    float_t etaI, etaT, k;
 
     inline conductor_t(float_t eI, float_t eT)
       : etaI(eI), etaT(eT)
     {}
+
+    inline float_t operator()(float_t cos_ti) const {
+      cos_ti = clamp(cos_ti, -1.0f, 1.0f);
+
+      const auto eta    = etaT / etaI;
+      const auto eta_k  = k / etaI;
+
+      const auto cos_ti2 = cos_ti * cos_ti;
+      const auto sin_ti2 = 1.0f - cos_ti2;
+      const auto eta2    = eta * eta;
+      const auto eta_k2  = eta_k * eta_k;
+
+      const auto t0   = eta2 - eta_k2 - sin_ti2;
+      const auto a2b2 = std::sqrt(t0*t0+4*eta2*eta_k2);
+      const auto t1   = a2b2 + cos_ti2;
+      const auto a    = std::sqrt(0.5f * (a2b2 + t0));
+      const auto t2   = 2.0f * cos_ti * a;
+      const auto rs   = (t1 - t2) / (t1 + t2);
+      const auto t3   = cos_ti2 * a2b2 + sin_ti2 * sin_ti2;
+      const auto t4   = t2 * sin_ti2;
+      const auto rp   = rs * (t3 - t4) / (t3 + t4);
+
+      return 0.5f * (rp + rs);
+    }
   };
 
-  // schlick approximation to fresnel equation
+  // schlick approximation to fresnel equations
+  struct schlick_t {
+    inline color_t operator()(const color_t& r, float_t a) const {
+      float cos_t = clamp(a, -1.0f, 1.0f);
+      return r + (1-r)*(1-a);
+    }
+  };
 }

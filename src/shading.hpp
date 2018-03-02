@@ -109,8 +109,8 @@ struct occlusion_query_t {
 };
 
 struct active_t {
-  uint16_t num;
-  uint16_t segment[256];
+  uint32_t num;
+  uint32_t segment[256];
 
   inline void clear() {
     num = 0;

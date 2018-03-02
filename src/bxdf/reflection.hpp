@@ -12,14 +12,15 @@ namespace bxdf {
     color_t k;
 
     specular_reflection_t(const color_t& k)
-      : bxdf_t(bxdf_t::REFLECTIVE)
+      : k(k), bxdf_t(bxdf_t::REFLECTIVE)
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
       out.sampled = vector_t(-v.x, v.y, -v.z);
       out.pdf     = 1.0;
       auto cos_n = v.y;
-      return k * (1.0 / std::abs(cos_n));
+
+      return k * (1.0f / std::abs(cos_n));
     }
 
     float_t pdf(const vector_t&, const vector_t&) const {

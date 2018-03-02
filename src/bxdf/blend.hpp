@@ -18,21 +18,28 @@ struct blend_t : bxdf_t {
 
   color_t f(const vector_t& in, const vector_t& out) const {
     auto s = blend(in.y);
-    return (s * a->f(in, out)) + ((1 - s) * b->f(in, out));
+    color_t ret;
+    if (a->has_distribution()) {
+      ret += s * a->f(in, out);
+    }
+    if (b->has_distribution()) {
+      ret += (1.0f - s) * b->f(in, out);
+    }
+    return ret;
   }
 
   color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
     auto s = blend(v.y);
     if (sample.u < s) {
       const auto r = s * a->sample(v, sample, out);
-      out.pdf *= s;
+      out.pdf = s;
       return r;
     }
     else {
-      s = 1.0f - s;
-      const auto r = s * b->sample(v, sample, out);
-      out.pdf *= s;
-      return r;
+       s = 1.0f - s;
+       const auto r = s * b->sample(v, sample, out);
+       out.pdf = s;
+       return r;
     }
   }
 

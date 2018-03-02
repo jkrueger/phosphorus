@@ -11,8 +11,6 @@
 struct mesh_t : public thing_t {
   typedef mesh_t* p;
 
-  static uint32_t ids;
-
   // global buffers for mesh data. we can definetely do better here but this
   // is as simple a pool as it gets for now
   static std::vector<vector_t> vertices;

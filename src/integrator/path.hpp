@@ -9,6 +9,8 @@
 #include "things/scene.hpp"
 #include "util/color.hpp"
 
+#include "bxdf/reflection.hpp"
+
 thread_local std::mt19937 gen;
 thread_local std::uniform_real_distribution<float_t> dis(0.0f,1.0f);
 
@@ -78,8 +80,6 @@ struct single_path_t {
   , const active_t& active
   , Splat& splats)
   {
-    //color_t color[] = {{1,0,0}, {0,1,0}, {0,0,1}};
-
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i]; 
       auto& shadow  = shadows[index];
@@ -104,7 +104,7 @@ struct single_path_t {
   , active_t& out)
   {
     for (auto i=0; i<active.num; ++i) {
-      auto index = active.segment[i];
+      auto  index   = active.segment[i];
       auto& segment = stream[index];
       const auto& tagent_space = tagent_spaces[index];
 

@@ -1,15 +1,12 @@
 #include "mesh.hpp"
 #include "shading.hpp"
 
-uint32_t mesh_t::ids = 0;
-
 std::vector<vector_t> mesh_t::vertices;
 std::vector<vector_t> mesh_t::normals;
 std::vector<uint32_t> mesh_t::faces;
 
 mesh_t::mesh_t(const material_t::p& m)
-  : id(ids++)
-  , index_vertices(vertices.size())
+  : index_vertices(vertices.size())
   ,  index_faces(faces.size())
   , material(m)
 {}
@@ -17,8 +14,7 @@ mesh_t::mesh_t(const material_t::p& m)
 mesh_t::mesh_t(
   const material_t::p& m, const vector_t* v, const vector_t* n,
   const uint32_t* f, uint32_t nv, uint32_t nf)
-  : id(ids++)
-  , index_vertices(vertices.size())
+  : index_vertices(vertices.size())
   , index_faces(faces.size())
   , material(m)
 {
