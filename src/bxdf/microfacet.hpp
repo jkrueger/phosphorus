@@ -13,11 +13,11 @@ namespace bxdf {
     color_t r;
 
     inline microfacet_t(const color_t& r, float_t alpha)
-      : bxdf_t(DIFFUSE | GLOSSY)
+      : bxdf_t(DIFFUSE | GLOSSY | REFLECTIVE)
       , r(r)
       , distribution(alpha)
       , shadowing(alpha)
-      , fresnel(1.63f, 1)
+      , fresnel(1.5f, 1)
     {}
 
     color_t f(const vector_t& wi, const vector_t& wo) const {
@@ -28,6 +28,7 @@ namespace bxdf {
       if (cos_ti == 0 || cos_to == 0) {
 	return color_t(0);
       }
+
       if (wh.x == 0 || wh.y == 0 || wh.z == 0) {
 	return color_t(0);
       }

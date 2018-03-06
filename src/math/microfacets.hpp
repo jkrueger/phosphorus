@@ -22,7 +22,7 @@ namespace microfacet {
 	const auto a2  = square(alpha);
 	const auto nm2 = square(cos_h);
 
-	return 1.0f/(M_PI*(nm2*(a2-1)+1));
+	return a2/(M_PI*square(nm2*(a2-1)+1));
       }
 
       // inline vector_t sample() const {}

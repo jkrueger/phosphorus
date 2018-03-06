@@ -89,7 +89,7 @@ struct single_path_t {
       if (!shadow.occluded()) {
 	// const invertible_base_t tagent_space(segment.n);
 	const auto il = tagent_space.to_local(shadow.wi);
-	const auto ol = tagent_space.to_local(segment.wi);
+	const auto ol = tagent_space.to_local(-segment.wi);
 	const auto s  = il.y/shadow.pdf;
 
 	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);

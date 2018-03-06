@@ -27,37 +27,19 @@ typedef camera_t<film_t, lenses::pinhole_t, single_path_t> pinhole_camera_t;
 
 const uint32_t film_t::PATCH_SIZE = 16;
 
-const uint32_t WIDTH=1920;
-const uint32_t HEIGHT=1080;
+const uint32_t WIDTH=1024;
+const uint32_t HEIGHT=768;
 
-const color_t L(0.5, 0.5, 0.5);
+const color_t L(8.0f, 8.0f, 8.0f);
 
-const material_t::p dummy(new diffuse_reflector_t({0, 1, 0}, 40.0f));
-const material_t::p discs(new diffuse_reflector_t({0.2, 0.2, 0.2}, 40.0f));
-const material_t::p discs_texture(new diffuse_reflector_t({0.2, 0.2, 0.2}, 40.0f));
-const material_t::p tubes(new diffuse_reflector_t({0.1, 0.1, 0.1}, 40.0f));
-// const material_t::p paint(new plastic_t(color_t::from_rgb(9,7,7), color_t::from_rgb(4,3,3), .1f));
-const material_t::p paint(new plastic_t(color_t::from_rgb(53, 35, 96), color_t::from_rgb(86, 54, 165), .9f));
-const material_t::p application(new plastic_t({0.76f, 0.76f, 0.66f}, {0.66f, 0.66f, 0.66f}, 10.0));
-const material_t::p backdrop(new diffuse_reflector_t({0.56f, 0.56f, 0.56f}, 80.0f));
-const material_t::p logo(new diffuse_reflector_t({1.f, 0.0, 0.0}, 40.0));
-const material_t::p breaks(new diffuse_reflector_t({1.f, 0.0, 0.0}, 40.0));
-const material_t::p backlights(new diffuse_reflector_t({0.86f, 0.1f, 0.2f}, 40.0));
-const material_t::p breaklights0(new diffuse_reflector_t({0.86f, 0.1f, 0.1f}, 40.0));
-const material_t::p breaklights1(new diffuse_reflector_t({0.66f, 0.1f, 0.1f}, 40.0));
-const material_t::p breaklights2(new diffuse_reflector_t({0.96f, 0.1f, 0.1f}, 40.0));
-const material_t::p rubber(new diffuse_reflector_t(color_t::from_rgb(4, 4, 3), 80.0f));
-const material_t::p tire0(new diffuse_reflector_t(color_t::from_rgb(4, 4, 3), 40.0f));
-const material_t::p tire1(new diffuse_reflector_t(color_t::from_rgb(4, 4, 3), 40.0f));
-const material_t::p black(new diffuse_reflector_t({0.05, 0.05, 0.05}, 40.0f));
-const material_t::p interior(new diffuse_reflector_t(color_t::from_rgb(18, 18, 18), 40.0f));
-const material_t::p under(new diffuse_reflector_t(color_t::from_rgb(37, 38, 38), 40.0f));
-const material_t::p license(new plastic_t({0.66f, 0.66f, 0.66f}, {0.76f, 0.76f, 0.76f}, 10.0));
+const material_t::p def(new diffuse_reflector_t({1, 1, 1}, 0));
+//const material_t::p bottom(new plastic_t({0.1, 0.1, 0.1}, {.7,.7,.7}, .1f));
+const material_t::p bottom(new diffuse_reflector_t({1, 1, 1}, 0));
+const material_t::p left(new diffuse_reflector_t({0.8, 0.072, 0.111}, 0));
+const material_t::p right(new diffuse_reflector_t({0.142, 0.148, 0.8}, 0));
 const material_t::p mirror(new mirror_t({1, 1, 1}));
-const material_t::p chrome(new mirror_t({1, 1, 1}));
-const material_t::p darkchrome(new mirror_t({0.5f, 0.5, 0.5f}));
 const material_t::p glass(new glass_t({1, 1, 1}));
-//const material_t::p backlights(new glass_t({0.86, 0.1, 0.2}));
+const material_t::p test(new plastic_t({0.2,0.2,0.2}, {1,1,1}, 0.1f));
 
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
@@ -67,32 +49,15 @@ int main(int argc, char** argv) {
 
   auto film    = film_t::p(new film_t(WIDTH, HEIGHT, samples));
   auto pinhole = lenses::pinhole_t::p(new lenses::pinhole_t);
-
-  auto light0 = light_t::p(new light_t({-5.0f, 5.0f, -5.0f}, surface_t::p(new things::sphere_t(1.0)), L));
+  auto light0  = light_t::p(new light_t({0, 2.3f, 0}, surface_t::p(new things::sphere_t(0.1f)), L));
 
   mesh_scene_t scene(stats);
-  scene.add(chrome);
-  scene.add(black);
-  scene.add(discs);
-  scene.add(breaklights1);
-  scene.add(paint);
-  scene.add(interior);
-  scene.add(glass);
-  scene.add(under);
-  scene.add(tire0);
-  scene.add(rubber);
-  scene.add(darkchrome);
-  scene.add(tubes);
-  scene.add(tire1);
-  scene.add(dummy);
-  scene.add(logo);
-  scene.add(license);
-  scene.add(breaks);
-  scene.add(breaklights2);
-  scene.add(discs_texture);
-  scene.add(breaklights0);
-  scene.add(backlights);
-  scene.add(backdrop);
+  scene.add(def);
+  scene.add(left);
+  scene.add(right);
+  scene.add(test);
+  scene.add(bottom);
+  scene.add(mirror);
   scene.add(light0);
 
   codec::scene::load(path, scene);
@@ -101,10 +66,7 @@ int main(int argc, char** argv) {
   scene.preprocess();
 
   pinhole_camera_t::p camera(new pinhole_camera_t(film, pinhole, stats));
-  //camera->look_at({3, 3, -3}, {0,0.7,0});
-  camera->look_at({-2.5, 0.4f, 3}, {0,0,1});
-  //auto camera = camera_t<path_tracer_t>::look_at(stats, {277,-300,250}, {-20,60,-20}, {1,0,0});
-  //auto camera = camera_t<path_tracer_t>::look_at(stats, {450,1200,-500}, {400,0,-500}, {0,0,-1});
+  camera->look_at({0, 1.25f, -3.8}, {0,1.25f,0});
 
   auto done = false;
   auto t = std::thread([&](){

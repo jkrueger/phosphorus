@@ -1,6 +1,7 @@
 #include "plastic.hpp"
 #include "shading.hpp"
 #include "bxdf/lambert.hpp"
+#include "bxdf/specular.hpp"
 #include "bxdf/microfacet.hpp"
 #include "bxdf/bsdf.hpp"
 

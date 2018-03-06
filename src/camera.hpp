@@ -127,9 +127,6 @@ struct camera_t {
 	auto& material = m[mesh->material->id];
 	material.splats.segment[material.splats.num++] = index;
       }
-      //else {
-      //splats[index].c += segment.beta * color_t(0.3f,0.2f,0.2f);
-      //}
     }
   }
 

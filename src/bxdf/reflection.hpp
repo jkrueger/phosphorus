@@ -12,7 +12,7 @@ namespace bxdf {
     color_t k;
 
     specular_reflection_t(const color_t& k)
-      : k(k), bxdf_t(bxdf_t::REFLECTIVE)
+      : k(k), bxdf_t(bxdf_t::REFLECTIVE | bxdf_t::SPECULAR)
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
@@ -33,7 +33,7 @@ namespace bxdf {
     color_t k;
 
     specular_transmission_t(const color_t& k, float_t eA, float_t eB)
-      : bxdf_t(bxdf_t::TRANSMISSIVE), k(k), etaA(eA), etaB(eB)
+      : bxdf_t(bxdf_t::TRANSMISSIVE | bxdf_t::SPECULAR), k(k), etaA(eA), etaB(eB)
     {}
 
     color_t sample(const vector_t& v, const sample_t& sample, sampled_vector_t& out) const {
