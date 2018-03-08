@@ -22,6 +22,8 @@ struct scene_impl_t : public scene_t {
   std::vector<mesh_t::p>     meshes;
   std::vector<material_t::p> materials;
 
+  //light::environment_t environment;
+
   stats_t::p stats;
 
   scene_impl_t(const stats_t::p& s)
@@ -48,7 +50,7 @@ struct scene_impl_t : public scene_t {
   inline void add(const light_t::p& light) {
     lights.push_back(light);
     // TODO: push light into things as well, so they get added
-    // as geometry top the scene
+    // as geometry to the scene
   }
 
   inline void add(const material_t::p& material) {

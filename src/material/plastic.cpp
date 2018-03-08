@@ -8,8 +8,8 @@
 typedef bxdf::lambert_t diffuse_t;
 
 typedef bxdf::microfacet_t<
-  microfacet::distribution::ggx_t
-, microfacet::shadowing::schlick_t
+  microfacet::distribution::ggx_pbrt_t
+, microfacet::shadowing::ggx_pbrt_t
 , fresnel::dielectric_t
 > gloss_t;
 

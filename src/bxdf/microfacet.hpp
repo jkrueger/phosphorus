@@ -21,7 +21,7 @@ namespace bxdf {
     {}
 
     color_t f(const vector_t& wi, const vector_t& wo) const {
-      const auto wh = (wi + wo);
+      auto wh = (wi + wo);
       const auto cos_ti = std::abs(tangent_space::cos_theta(wi));
       const auto cos_to = std::abs(tangent_space::cos_theta(wo));
 
@@ -33,9 +33,13 @@ namespace bxdf {
 	return color_t(0);
       }
 
-      const auto cos_h = dot(wi, wh.normalized());
+      wh.normalize();
 
-      return (r * distribution(cos_h) * shadowing(cos_to) * fresnel(cos_h)) *
+      const auto cos_h  = dot(wi, wh);
+      const auto cos_h2 = dot(wo, wh);
+      const auto g      = 1 / (1 + shadowing(wi) + shadowing(wo));
+
+      return (r * distribution(wh) * g * fresnel(cos_h)) *
 	(1.0f / (4 * cos_ti * cos_to));
     }
 
