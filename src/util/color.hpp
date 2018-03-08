@@ -2,8 +2,15 @@
 
 #include "precision.hpp"
 
+#include <iostream>
+
 struct color_t {
-  float_t r, g, b;
+  union {
+    struct {
+      float_t r, g, b;
+    };
+    float_t v[3];
+  };
 
   inline color_t()
     : r(0), g(0), b(0)

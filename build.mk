@@ -5,6 +5,7 @@ products_$(d) := rayray
 rayray_sources_$(d) += \
 	core.cpp \
         material.cpp \
+        texture.cpp \
 	codec/image/bmp.cpp \
 	codec/image/exr.cpp \
         codec/mesh/ply.cpp \
@@ -26,6 +27,6 @@ rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -g -Ivendor/rply/src -fno-inline -m
 else
 rayray_cxx_flags_$(d)   := -std=c++14 -Isrc/ -Ivendor/rply/src -I/usr/local/include -O3 -flto -march=native
 endif
-rayray_ld_flags_$(d)    := -L/usr/local/lib -lIlmImf -lHalf -lIex -L$(BUILD_DIR)/lib -lrply -flto -lassimp -Wl,-stack_size,1000000
+rayray_ld_flags_$(d)    := -L/usr/local/lib -lIlmImf -lHalf -lIex -lOpenImageIO -L$(BUILD_DIR)/lib -lrply -flto -lassimp -Wl,-stack_size,1000000
 
 include $(TOP)/build/footer.mk
