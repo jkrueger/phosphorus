@@ -73,26 +73,33 @@ struct single_path_t {
     scene.occluded(shadows, active);
   }
 
-  template<typename Splat>
+  template<typename Scene, typename Splat>
   inline void shade(
-    const bxdf_t::p bxdf
+    const Scene& scene
+  , const bxdf_t::p bxdf
   , const segment_t* stream
   , const active_t& active
   , Splat& splats)
   {
     for (auto i=0; i<active.num; ++i) {
-      auto  index   = active.segment[i]; 
-      auto& shadow  = shadows[index];
-      auto& segment = stream[index];
+      const auto  index   = active.segment[i]; 
+      const auto& shadow  = shadows[index];
+      const auto& segment = stream[index];
       const auto& tagent_space = tagent_spaces[index];
 
-      if (!shadow.occluded()) {
-	// const invertible_base_t tagent_space(segment.n);
-	const auto il = tagent_space.to_local(shadow.wi);
-	const auto ol = tagent_space.to_local(-segment.wi);
-	const auto s  = il.y/shadow.pdf;
+      if (segment.alive()) {
+	if (!shadow.occluded()) {
+	  // const invertible_base_t tagent_space(segment.n);
+	  const auto il = tagent_space.to_local(shadow.wi);
+	  const auto ol = tagent_space.to_local(-segment.wi);
+	  const auto s  = il.y/shadow.pdf;
 
-	splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
+	  splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
+	}
+      }
+      else {
+	// path has left scene. sample environment light
+	scene.le(segment);
       }
     }
   }
@@ -106,29 +113,33 @@ struct single_path_t {
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i];
       auto& segment = stream[index];
-      const auto& tagent_space = tagent_spaces[index];
 
-      sample_t uv = { dis(gen), dis(gen) };
-      sampled_vector_t next;
+      if (segment.alive()) {
+      
+	const auto& tagent_space = tagent_spaces[index];
 
-      // sample the bsdf based on the previous path direction transformed
-      // into the tangent space of the hit point
-      const auto pl = tagent_space.to_local(-segment.wi);
-      const auto f  = bxdf->sample(pl, uv, next);
+	sample_t uv = { dis(gen), dis(gen) };
+	sampled_vector_t next;
 
-      // transform the sampled direction back to world
-      segment.wo   = segment.wi;
-      segment.wi   = tagent_space.to_world(next.sampled);
-      segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
+	// sample the bsdf based on the previous path direction transformed
+	// into the tangent space of the hit point
+	const auto pl = tagent_space.to_local(-segment.wi);
+	const auto f  = bxdf->sample(pl, uv, next);
 
-      shading::offset(segment, segment.n);
+	// transform the sampled direction back to world
+	segment.wo   = segment.wi;
+	segment.wi   = tagent_space.to_world(next.sampled);
+	segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
 
-      if (segment.depth < max_depth &&
-	  (segment.depth < 3 || !terminate_ray(segment.beta))) {
-	out.segment[out.num++] = active.segment[i];
+	shading::offset(segment, segment.n);
+
+	if (segment.depth < max_depth &&
+	    (segment.depth < 3 || !terminate_ray(segment.beta))) {
+	  out.segment[out.num++] = active.segment[i];
+	}
+
+	++segment.depth;
       }
-
-      ++segment.depth;
     }
   }
 

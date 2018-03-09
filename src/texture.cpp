@@ -60,6 +60,9 @@ struct oiio_t : public texture_t<color_t>::impl_t {
   }
 };
 
+TextureSystem* oiio_t::oiio = nullptr;
+thread_local TextureSystem::Perthread* oiio_t::thread_info = nullptr;
+
 template<typename T>
 struct constant_t : public texture_t<T>::impl_t
 {
@@ -102,6 +105,16 @@ texture_t<color_t>::p texture_t<color_t>::constant(const color_t& c) {
 template<>
 texture_t<color_t>::p texture_t<color_t>::load(const std::string& path) {
   return texture_t::p(new texture_t(new oiio_t(path)));
+}
+
+template<>
+void texture_t<color_t>::boot() {
+  oiio_t::boot();
+}
+
+template<>
+void texture_t<color_t>::attach() {
+  oiio_t::attach();
 }
 
 template class texture_t<color_t>;

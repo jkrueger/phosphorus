@@ -5,6 +5,7 @@
 #include "math/orthogonal_base.hpp"
 #include "math/ray.hpp"
 #include "shading.hpp"
+#include "texture.hpp"
 #include "thing.hpp"
 #include "util/algo.hpp"
 #include "util/allocator.hpp"
@@ -54,6 +55,7 @@ struct camera_t {
     , lens(lens)
     , stats(stats)
   {
+    texture_t<color_t>::attach();
   }
 
   void look_at(
@@ -118,12 +120,17 @@ struct camera_t {
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i];
       auto& segment = segments[index];
-      if (segment.alive()) {
-	auto mesh = scene.meshes[segment.mesh];
+      auto mesh     = scene.meshes[segment.mesh];
 
+      if (segment.alive()) {
 	segment.follow();
 	segment.n = mesh->shading_normal(segment);
+      }
 
+      // pass segment into shading pipeline if there is a new surface
+      // intersection, or if there isn't but the integrator still
+      // needs to consider an environment light source
+      if (segment.alive() || scene.has_environment()) {
 	auto& material = m[mesh->material->id];
 	material.splats.segment[material.splats.num++] = index;
       }
@@ -180,7 +187,7 @@ struct camera_t {
 	      do {
 		if (shading::has_live_paths(m->splats)) {
 		  auto bxdf = m->material->at(allocator);
-		  integrator.shade(bxdf, segments, m->splats, splats);
+		  integrator.shade(scene, bxdf, segments, m->splats, splats);
 		  integrator.sample_path_directions(bxdf, segments, m->splats, active);
 		}
 	      } while (++m != material_end);

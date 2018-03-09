@@ -2,6 +2,7 @@
 
 #include "mesh.hpp"
 #include "light.hpp"
+#include "lights/environment.hpp"
 #include "thing.hpp"
 #include "util/stats.hpp"
 #include "traversal/bvh.hpp"
@@ -22,7 +23,7 @@ struct scene_impl_t : public scene_t {
   std::vector<mesh_t::p>     meshes;
   std::vector<material_t::p> materials;
 
-  //light::environment_t environment;
+  light::environment_t::p environment;
 
   stats_t::p stats;
 
@@ -60,6 +61,14 @@ struct scene_impl_t : public scene_t {
 
   inline material_t::p material(uint32_t id) const {
     return id < materials.size() ? materials[id] : nullptr;
+  }
+
+  inline bool has_environment() const {
+    return environment;
+  }
+
+  inline color_t le(const segment_t& s) const {
+    return environment->le(s);
   }
 };
 

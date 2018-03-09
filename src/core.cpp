@@ -7,6 +7,7 @@
 #include "things/parametric.hpp"
 #include "things/scene.hpp"
 #include "traversal/bvh.hpp"
+#include "lights/area.hpp"
 #include "material.hpp"
 #include "material/diffuse.hpp"
 #include "material/plastic.hpp"
@@ -18,6 +19,7 @@
 #include "codec/mesh/ply.hpp"
 #include "codec/scene.hpp"
 #include "util/stats.hpp"
+#include "texture.hpp"
 
 #include <dirent.h>
 #include <sys/time.h>
@@ -45,12 +47,14 @@ const material_t::p test2(new plastic_t({0.2,0.2,0.2}, {1,1,1}, 0.1f));
 int main(int argc, char** argv) {
   stats_t::p stats(new stats_t());
 
+  texture_t<color_t>::boot();
+
   auto path    = argv[1];
   auto samples = argc > 2 ? atoi(argv[2]) : 1;
 
   auto film    = film_t::p(new film_t(WIDTH, HEIGHT, samples));
   auto pinhole = lenses::pinhole_t::p(new lenses::pinhole_t);
-  auto light0  = light_t::p(new light_t({0, 2.3f, 0}, surface_t::p(new things::sphere_t(0.05f)), L));
+  auto light0  = light_t::p(new light::area_t({0, 2.3f, 0}, surface_t::p(new things::sphere_t(0.05f)), L));
 
   mesh_scene_t scene(stats);
   scene.add(def);

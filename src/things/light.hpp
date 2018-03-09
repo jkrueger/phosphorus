@@ -8,37 +8,15 @@
 struct light_t {
   typedef light_t* p;
 
-  surface_t::p surface;
-  float_t      area;
-  color_t      emissive;
-  vector_t     position;
-
-  light_t(const vector_t& p, const surface_t::p& s, const color_t& e)
-    : surface(s),
-      area(0.0),
-      emissive(e),
-      position(p)
+  virtual ~light_t()
   {}
 
-  void sample(
+  virtual void sample(
     const vector_t& p,
     const sample_t* samples,
-    sampled_vector_t* out, uint32_t n) const {
+    sampled_vector_t* out, uint32_t n) const = 0;
 
-    surface->sample(p, samples, out, n);
+  virtual color_t emit() const = 0;
 
-    orthogonal_base_t base((p - position).normalize());
-
-    for (auto i=0; i<n; ++i) {
-      out[i].sampled = base.to_world(out[i].sampled) + position;
-    }
-  }
-
-  const color_t& emit() const {
-    return emissive;
-  }
-
-  color_t power() const {
-    return emissive * area * M_PI;
-  }
+  virtual color_t power() const  = 0;
 };
