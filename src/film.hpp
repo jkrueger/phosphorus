@@ -53,6 +53,7 @@ struct film_t {
     , height(h)
     , spd(spd)
     , spp(spd*spd)
+    , patch(0)
   {
     num_samples = w*h*spp;
     num_patches = (w/PATCH_SIZE)*(h/PATCH_SIZE);
