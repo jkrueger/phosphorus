@@ -120,20 +120,20 @@ struct camera_t {
     for (auto i=0; i<active.num; ++i) {
       auto  index   = active.segment[i];
       auto& segment = segments[index];
-      auto mesh     = scene.meshes[segment.mesh];
+      // if there is no intersection point, the mesh will be the last
+      // intersection point, which is used to as a hack to determine if
+      // the path segment is the result of a specular reflection for
+      // environment lookups
+      auto mesh = scene.meshes[segment.mesh];
 
-      if (segment.alive()) {
+      if (segment.is_hit()) {
 	segment.follow();
 	segment.n = mesh->shading_normal(segment);
+	//mesh->st(segment);
       }
 
-      // pass segment into shading pipeline if there is a new surface
-      // intersection, or if there isn't but the integrator still
-      // needs to consider an environment light source
-      if (segment.alive() || scene.has_environment()) {
-	auto& material = m[mesh->material->id];
-	material.splats.segment[material.splats.num++] = index;
-      }
+      auto& material = m[mesh->material->id];
+      material.splats.segment[material.splats.num++] = index;
     }
   }
 
@@ -205,9 +205,7 @@ struct camera_t {
     }
 
     for (int t=0; t<cores; ++t) {
-      if (threads[t].joinable()) {
-	threads[t].join();
-      }
+      threads[t].join();
     }
   }
 };

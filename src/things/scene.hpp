@@ -67,8 +67,8 @@ struct scene_impl_t : public scene_t {
     return environment;
   }
 
-  inline color_t le(const segment_t& s) const {
-    return environment->le(s);
+  inline color_t le(const vector_t& wi) const {
+    return environment->le(wi);
   }
 };
 

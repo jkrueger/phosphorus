@@ -3,6 +3,8 @@
 
 std::vector<vector_t> mesh_t::vertices;
 std::vector<vector_t> mesh_t::normals;
+std::vector<float_t>  mesh_t::u;
+std::vector<float_t>  mesh_t::v;
 std::vector<uint32_t> mesh_t::faces;
 
 mesh_t::mesh_t(const material_t::p& m)

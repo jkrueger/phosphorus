@@ -20,21 +20,21 @@ namespace light {
     {}
 
     void sample(
-      const vector_t& p
+      const segment_t& s
     , const sample_t* samples
     , sampled_vector_t* out
     , uint32_t n) const
     {
-      surface->sample(p, samples, out, n);
+      surface->sample(s.p, samples, out, n);
 
-      orthogonal_base_t base((p - position).normalize());
+      orthogonal_base_t base((s.p - position).normalize());
 
       for (auto i=0; i<n; ++i) {
 	out[i].sampled = base.to_world(out[i].sampled) + position;
       }
     }
 
-    color_t emit() const {
+    color_t emit(const vector_t&, vector_t&) const {
       return emissive;
     }
 

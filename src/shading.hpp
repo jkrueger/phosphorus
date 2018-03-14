@@ -8,41 +8,59 @@
 
 #include <limits>
 
+static const uint8_t ALIVE    = 1;
+static const uint8_t HIT      = 2;
+static const uint8_t MASKED   = 4;
+
 struct segment_t {
   static const bool shade = true;
   static const bool stop_on_first_hit = false;
 
-  vector_t p; // 12
-  vector_t wi; // 24
-  vector_t n;  // 32
-  color_t  beta; // 44
-  float_t  d; // 48
-  float_t  u; // 52
-  float_t  v; // 56
-  uint32_t mesh; // 60
-  uint32_t face; // 64
-  uint32_t flags : 8, depth : 8, material: 16; // 68
-  vector_t wo; // 80
+  vector_t  p; // 12
+  vector_t  wi; // 24
+  vector_t  n;  // 32
+  color_t   beta; // 44
+  float_t   d; // 48
+  float_t   u; // 52
+  float_t   v; // 56
+  uint32_t  mesh; // 60
+  uint32_t  face; // 64
+  uint32_t  flags : 8, depth : 8, material: 16; // 68
+  vector_t  wo; // 80
+  float_t   s;
+  float_t   t;
   // TODO: ray differentials, light contribution
-  char     padding[48];
+  char     padding[40];
 
   inline segment_t()
     : beta(1.0f)
     , d(std::numeric_limits<float>::max())
-    , flags(1)
+    , flags((uint8_t) ALIVE)
     , depth(0)
   {}
 
   inline void kill() {
-    flags = 0;
+    flags &= ~ALIVE;
   }
 
   inline void revive() {
-    flags = 1;
+    flags |= ALIVE;
   }
 
-  inline bool alive() const {
-    return flags;
+  inline void miss() {
+    flags &= ~HIT;
+  }
+
+  inline void hit() {
+    flags |= HIT;
+  }
+
+  inline bool is_alive() const {
+    return (flags & ALIVE) == ALIVE;
+  }
+
+  inline bool is_hit() const {
+    return (flags & HIT) == HIT;
   }
 
   inline constexpr bool masked() const {
@@ -81,27 +99,39 @@ struct occlusion_query_t {
   {}
 
   inline void mask() {
-    flags |= 2;
+    flags |= MASKED;
   }
 
   inline void kill() {
-    flags &= ~1;
+    flags &= ~ALIVE;
   }
 
   inline void revive() {
-    flags |= 1;
+    flags |= ALIVE;
   }
 
-  inline bool alive() const {
-    return (flags & 1) == 1;
+  inline void miss() {
+    flags &= ~HIT;
+  }
+
+  inline void hit() {
+    flags |= HIT;
+  }
+
+  inline bool is_hit() const {
+    return (flags & HIT) == HIT;
+  }
+
+  inline bool is_alive() const {
+    return (flags & ALIVE) == ALIVE;
   }
 
   inline bool masked() const {
-    return (flags & 2) == 2;
+    return (flags & MASKED) == MASKED;
   }
 
   inline bool occluded() const {
-    return alive() | masked();
+    return is_hit() | masked();
   }
 
   inline void shading(float u, float v, uint32_t m, uint32_t f)

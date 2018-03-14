@@ -8,7 +8,7 @@ struct paint_t : public material_t {
   float_t etaA, etaB;
 
   paint_t(const color_t& k)
-    : k(k), etaA(1.1), etaB(1)
+    : k(k), etaA(1), etaB(1.6)
   {}
 
   bxdf_t::p at(allocator_t& a) const;

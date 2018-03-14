@@ -12,11 +12,11 @@ struct light_t {
   {}
 
   virtual void sample(
-    const vector_t& p,
+    const segment_t& s,
     const sample_t* samples,
     sampled_vector_t* out, uint32_t n) const = 0;
 
-  virtual color_t emit() const = 0;
+  virtual color_t emit(const vector_t&, vector_t&) const = 0;
 
   virtual color_t power() const  = 0;
 };

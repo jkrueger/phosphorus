@@ -241,7 +241,7 @@ struct bvh_t<T>::impl_t {
       auto  index   = active.segment[i];
       auto& segment = stream[index];
       if (!segment.masked()) {
-	segment.kill();
+	segment.miss();
 	// avoid copying of data and call constructor directly
 	new(ray) traversal_ray_t<Stream>(segment.p, segment.wi, &segment);
 	push(lanes, 0, i);
@@ -278,7 +278,7 @@ struct bvh_t<T>::impl_t {
 	while (todo != end) {
 	  const auto& ray = rays[*todo];
 
-	  if (Stream::stop_on_first_hit && ray.segment->alive()) {
+	  if (Stream::stop_on_first_hit && ray.segment->is_hit()) {
 	    ++todo;
 	    continue;
 	  }
@@ -342,7 +342,7 @@ struct bvh_t<T>::impl_t {
 	    if (accelerator_t<T>::intersect(
 	          rays[*todo]
 	        , things[index])) {
-	      rays[*todo].segment->revive();
+	      rays[*todo].segment->hit();
 	    }
 	    index += build::MAX_PRIMS_IN_NODE;
 	  } while(index < cur.prims);

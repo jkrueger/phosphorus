@@ -40,7 +40,7 @@ struct single_path_t {
     for (auto i=0; i<active.num; ++i) {
       auto index = active.segment[i];
       const auto& segment = stream[index];
-      if (segment.alive()) {
+      if (segment.is_hit()) {
 	auto& shadow = shadows[index];
 
 	auto  l     = (size_t) (dis(gen) * scene.lights.size());
@@ -49,17 +49,16 @@ struct single_path_t {
 	sample_t uv = { dis(gen), dis(gen) };
 	sampled_vector_t sample;
 
-	light->sample(segment.p, &uv, &sample, 1);
+	light->sample(segment, &uv, &sample, 1);
 
 	shadow.p  = segment.p;
 	shadow.wi = sample.sampled - segment.p;
-
 	if (in_same_hemisphere(shadow.wi, segment.n)) {
 	  shading::offset(shadow, segment.n);
 	  shadow.d     = shadow.wi.length();
 	  shadow.wi.normalize();
 	  shadow.pdf   = sample.pdf;
-	  shadow.e     = light->emit();
+	  shadow.e     = light->emit(shadow.p, shadow.wi);
 	  shadow.flags = 0;
 	}
 	else {
@@ -87,20 +86,27 @@ struct single_path_t {
       const auto& segment = stream[index];
       const auto& tagent_space = tagent_spaces[index];
 
-      if (segment.alive()) {
-	if (!shadow.occluded()) {
-	  // const invertible_base_t tagent_space(segment.n);
-	  const auto il = tagent_space.to_local(shadow.wi);
-	  const auto ol = tagent_space.to_local(-segment.wi);
-	  const auto s  = il.y/shadow.pdf;
+      const auto il = tagent_space.to_local(shadow.wi);
+      const auto ol = tagent_space.to_local(-segment.wi);
 
-	  splats[index].c += segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
+      color_t r;
+      float_t s = 1;
+
+      if (segment.is_hit()) {
+	if (!shadow.occluded()) {
+	  s = il.y / shadow.pdf;
+	  r = segment.beta * (shadow.e * bxdf->f(il, ol)).scale(s);
 	}
       }
       else {
-	// path has left scene. sample environment light
-	scene.le(segment);
+	if (segment.depth == 0 || bxdf->is_specular()) {
+	  //s = dot(segment.wi, segment.n);
+	  r = segment.beta * scene.le(segment.wi);
+	  //std::cout << s << std::endl;
+	}
       }
+
+      splats[index].c += r;
     }
   }
 
@@ -114,31 +120,36 @@ struct single_path_t {
       auto  index   = active.segment[i];
       auto& segment = stream[index];
 
-      if (segment.alive()) {
+      if (segment.is_hit()) {
+      const auto& tagent_space = tagent_spaces[index];
+
+      sample_t uv = { dis(gen), dis(gen) };
+      sampled_vector_t next;
+
+      // sample the bsdf based on the previous path direction transformed
+      // into the tangent space of the hit point
+      const auto pl = tagent_space.to_local(-segment.wi);
+      const auto f  = bxdf->sample(pl, uv, next);
+
+      // transform the sampled direction back to world
+      segment.wo   = segment.wi;
+      segment.wi   = tagent_space.to_world(next.sampled);
+      segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
       
-	const auto& tagent_space = tagent_spaces[index];
+      shading::offset(segment, segment.n);
 
-	sample_t uv = { dis(gen), dis(gen) };
-	sampled_vector_t next;
+      if (segment.depth < max_depth &&
+	  (segment.depth < 3 || !terminate_ray(segment.beta))) {
+	out.segment[out.num++] = active.segment[i];
+      }
+      else {
+	segment.kill();
+      }
 
-	// sample the bsdf based on the previous path direction transformed
-	// into the tangent space of the hit point
-	const auto pl = tagent_space.to_local(-segment.wi);
-	const auto f  = bxdf->sample(pl, uv, next);
-
-	// transform the sampled direction back to world
-	segment.wo   = segment.wi;
-	segment.wi   = tagent_space.to_world(next.sampled);
-	segment.beta = segment.beta * (f * (abs_dot(segment.wi, segment.n) / next.pdf));
-
-	shading::offset(segment, segment.n);
-
-	if (segment.depth < max_depth &&
-	    (segment.depth < 3 || !terminate_ray(segment.beta))) {
-	  out.segment[out.num++] = active.segment[i];
-	}
-
-	++segment.depth;
+      ++segment.depth;
+      }
+      else {
+	segment.kill();
       }
     }
   }
