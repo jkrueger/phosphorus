@@ -3,12 +3,13 @@
 #include "material.hpp"
 #include "precision.hpp"
 
-struct glass_t : public material_t {
+struct metal_t : public material_t {
   color_t k;
-  float_t etaA, etaB;
+  float_t eta;
+  float_t rough;
 
-  glass_t(const color_t& k)
-    : k(k), etaA(1), etaB(1.63)
+  metal_t(const color_t& k)
+    : k(k)
   {}
 
   bxdf_t::p at(allocator_t& a) const;

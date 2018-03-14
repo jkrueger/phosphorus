@@ -16,11 +16,11 @@ typedef bxdf::specular_reflection_t gloss_t;
 //typedef bxdf::lambert_t coat_t;
 
 bxdf_t::p paint_t::at(allocator_t& a) const {
-  auto gloss = new(a) gloss_t({1,1,1});
-  auto paint = new(a) coat_t(k, microfacet::distribution::ggx_t::roughness_to_alpha(.1f));
+  auto gloss = new(a) gloss_t({.8,.8,.8});
+  auto paint = new(a) coat_t(k, microfacet::distribution::ggx_t::roughness_to_alpha(.2f));
   //auto paint = new(a) coat_t(k);
 
   //return paint;
   //return gloss;
-  return new(a) blend_t<fresnel::dielectric_t, gloss_t, coat_t>(gloss, paint, etaB, etaA);
+  return new(a) blend_t<fresnel::dielectric_t, gloss_t, coat_t>(gloss, paint, etaA, etaB);
 }
